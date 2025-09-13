@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import AuthButton from "@/components/AuthButton";
+import ProfileForm from "@/components/ProfileForm";
 import TripChat from "@/components/TripChat";
 
 type Item = {
@@ -10,6 +12,7 @@ type Item = {
   image_url: string | null;
   site: string | null;
   type: string | null;
+  created_at?: string;
 };
 
 export default function Board() {
@@ -30,21 +33,29 @@ export default function Board() {
   }, []);
 
   const add = async () => {
-    if (!url) return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    // Unfurl page metadata
     const r = await fetch("/api/unfurl", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url: trimmed }),
     });
     const meta = await r.json();
 
-    await supabase.from("items").insert({
-      url,
+    // Save to Supabase
+    const { error } = await supabase.from("items").insert({
+      url: trimmed,
       type,
-      title: meta.title,
-      image_url: meta.image,
-      site: meta.site,
+      title: meta.title ?? null,
+      image_url: meta.image ?? null,
+      site: meta.site ?? null,
     });
+    if (error) {
+      console.error("Insert error:", error);
+      return;
+    }
 
     setUrl("");
     load();
@@ -52,8 +63,13 @@ export default function Board() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold">Trip Board</h1>
+      {/* Header with title + auth */}
+      <h1 className="text-2xl font-semibold flex items-center justify-between">
+        <span>Trip Board</span>
+        <AuthButton />
+      </h1>
 
+      {/* Link input row */}
       <div className="mt-4 flex gap-2">
         <input
           value={url}
@@ -76,18 +92,27 @@ export default function Board() {
         </button>
       </div>
 
+      {/* Profile editor (username, display name, avatar) */}
+      <ProfileForm />
+
+      {/* Saved link cards */}
       <div className="mt-6 space-y-4">
         {items.map((it) => (
           <div key={it.id} className="border rounded-lg overflow-hidden">
             {it.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={it.image_url} alt="" className="w-full h-40 object-cover" />
+              <img
+                src={it.image_url}
+                alt=""
+                className="w-full h-40 object-cover"
+              />
             )}
             <div className="p-4">
               <div className="text-xs uppercase text-gray-500">{it.type}</div>
               <a
                 href={it.url}
                 target="_blank"
+                rel="noreferrer"
                 className="font-medium hover:underline"
               >
                 {it.title || it.url}
@@ -98,8 +123,10 @@ export default function Board() {
         ))}
       </div>
 
-      {/* Chat box below the cards */}
+      {/* Chat box */}
       <TripChat />
     </div>
   );
 }
+
+
