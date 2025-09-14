@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase";
 import AuthButton from "@/components/AuthButton";
 import ProfileForm from "@/components/ProfileForm";
 import TripChat from "@/components/TripChat";
+import TripBar from "@/components/TripBar";
+import Availability from "@/components/Availability";
 
 type Item = {
   id: string;
@@ -13,28 +15,36 @@ type Item = {
   site: string | null;
   type: string | null;
   created_at?: string;
+  trip_id?: string | null;
 };
 
+type Trip = { id: string; name: string; start_date: string | null; end_date: string | null };
+
 export default function Board() {
+  const [trip, setTrip] = useState<Trip | null>(null);
   const [url, setUrl] = useState("");
   const [type, setType] = useState("restaurant");
   const [items, setItems] = useState<Item[]>([]);
 
   const load = async () => {
+    if (!trip) { setItems([]); return; }
     const { data, error } = await supabase
       .from("items")
       .select("*")
+      .eq("trip_id", trip.id)
       .order("created_at", { ascending: false });
     if (!error) setItems((data as Item[]) || []);
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip?.id]);
 
   const add = async () => {
     const trimmed = url.trim();
     if (!trimmed) return;
+    if (!trip) { alert("Pick or create a trip first."); return; }
 
     // Unfurl page metadata
     const r = await fetch("/api/unfurl", {
@@ -51,11 +61,9 @@ export default function Board() {
       title: meta.title ?? null,
       image_url: meta.image ?? null,
       site: meta.site ?? null,
+      trip_id: trip.id,
     });
-    if (error) {
-      console.error("Insert error:", error);
-      return;
-    }
+    if (error) { console.error("Insert error:", error); return; }
 
     setUrl("");
     load();
@@ -68,6 +76,9 @@ export default function Board() {
         <span>Trip Board</span>
         <AuthButton />
       </h1>
+
+      {/* Trip selector / creator */}
+      <TripBar onTripChange={setTrip} />
 
       {/* Link input row */}
       <div className="mt-4 flex gap-2">
@@ -92,7 +103,7 @@ export default function Board() {
         </button>
       </div>
 
-      {/* Profile editor (username, display name, avatar) */}
+      {/* Profile editor */}
       <ProfileForm />
 
       {/* Saved link cards */}
@@ -101,23 +112,19 @@ export default function Board() {
           <div key={it.id} className="border rounded-lg overflow-hidden">
             {it.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={it.image_url}
-                alt=""
-                className="w-full h-40 object-cover"
-              />
+              <img src={it.image_url} alt="" className="w-full h-40 object-cover" />
             )}
             <div className="p-4">
               <div className="text-xs uppercase text-gray-500">{it.type}</div>
-              <a
-                href={it.url}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium hover:underline"
-              >
+              <a href={it.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
                 {it.title || it.url}
               </a>
               <div className="text-sm text-gray-500">{it.site}</div>
+
+              {/* Availability widget only for restaurants */}
+              {it.type === "restaurant" && trip && (
+                <Availability url={it.url} start={trip.start_date} end={trip.end_date} />
+              )}
             </div>
           </div>
         ))}
@@ -128,5 +135,7 @@ export default function Board() {
     </div>
   );
 }
+
+
 
 
