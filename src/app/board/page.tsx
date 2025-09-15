@@ -130,11 +130,12 @@ export default function Board() {
         ))}
       </div>
 
-      {/* Chat box */}
-      <TripChat />
+      {/* Chat box — pass the selected trip's id */}
+      <TripChat tripId={trip?.id ?? null} />
     </div>
   );
 }
+
 
 
 

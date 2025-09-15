@@ -4,14 +4,13 @@ import { supabase } from "@/lib/supabase";
 
 type Profile = { username: string | null; display_name: string | null; avatar_url: string | null };
 
-// Supabase can return profiles as an object, an array, or null, so accept all and normalize.
 type RawMessage = {
   id: string;
   text: string;
   created_at: string;
   user_id: string | null;
-  // Supabase join can be object or array depending on FK naming
   profiles?: Profile | Profile[] | null;
+  trip_id?: string | null;
 };
 
 type Message = {
@@ -22,40 +21,38 @@ type Message = {
   profiles?: Profile | null;
 };
 
-export default function TripChat() {
+export default function TripChat({ tripId }: { tripId: string | null }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<Message[]>([]);
 
-  // Normalize profiles: if array, take first; if object, keep; else null
   const normalize = (raw: RawMessage): Message => ({
     ...raw,
-    profiles: Array.isArray(raw.profiles)
-      ? (raw.profiles[0] ?? null)
-      : (raw.profiles ?? null),
+    profiles: Array.isArray(raw.profiles) ? (raw.profiles[0] ?? null) : (raw.profiles ?? null),
   });
 
+  // Per-trip broadcast channel so trips don't hear each other
+  const channel = useMemo(() => {
+    if (!tripId) return null;
+    return supabase.channel(`room-trip-${tripId}`, { config: { broadcast: { self: true } } });
+  }, [tripId]);
+
   const load = async () => {
+    if (!tripId) return;
     const { data, error } = await supabase
       .from("messages")
-      .select(
-        "id,text,created_at,user_id, profiles ( username, display_name, avatar_url )"
-      )
+      .select("id,text,created_at,user_id, profiles ( username, display_name, avatar_url ), trip_id")
+      .eq("trip_id", tripId) // 🔒 REQUIRED for RLS
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error(error);
+      console.error("Supabase messages load error:", JSON.stringify(error, null, 2));
+      setRows([]);
       return;
     }
     const list = (data as RawMessage[] | null) ?? [];
     setRows(list.map(normalize));
   };
-
-  // Broadcast channel (works without replication)
-  const channel = useMemo(
-    () => supabase.channel("room-global", { config: { broadcast: { self: true } } }),
-    []
-  );
 
   useEffect(() => {
     (async () => {
@@ -64,41 +61,52 @@ export default function TripChat() {
       await load();
     })();
 
+    if (!channel) return;
     const sub = channel
       .on("broadcast", { event: "message" }, (payload) => {
         const raw = payload.payload as RawMessage;
-        setRows((prev) => [...prev, normalize(raw)]);
+        if ((raw as any)?.trip_id === tripId) {
+          setRows((prev) => [...prev, normalize(raw)]);
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channel]);
+  }, [channel, tripId]);
 
   const send = async () => {
     if (!userId) { alert("Please sign in to chat."); return; }
+    if (!tripId) { alert("Select or create a trip first."); return; }
+
     const t = text.trim();
     if (!t) return;
 
-    // Insert with user_id and return joined profile
     const { data, error } = await supabase
       .from("messages")
-      .insert({ text: t, user_id: userId })
-      .select("id,text,created_at,user_id, profiles ( username, display_name, avatar_url )")
+      .insert({ text: t, user_id: userId, trip_id: tripId }) // 🔒 REQUIRED for RLS
+      .select("id,text,created_at,user_id, profiles ( username, display_name, avatar_url ), trip_id")
       .single();
 
     if (error || !data) {
-      console.error(error);
+      console.error("Supabase messages insert error:", JSON.stringify(error, null, 2));
       return;
     }
 
-    // Broadcast inserted row so all clients update instantly
-    await channel.send({ type: "broadcast", event: "message", payload: data });
+    await channel?.send({ type: "broadcast", event: "message", payload: data });
     setText("");
   };
 
   const nameOf = (p?: Profile | null) => p?.display_name || p?.username || "Someone";
+
+  if (!tripId) {
+    return (
+      <div className="border rounded-lg p-3 mt-8 text-sm text-gray-500">
+        Select or create a trip to open chat.
+      </div>
+    );
+  }
 
   return (
     <div className="border rounded-lg p-3 mt-8">
@@ -135,6 +143,7 @@ export default function TripChat() {
     </div>
   );
 }
+
 
 
 
