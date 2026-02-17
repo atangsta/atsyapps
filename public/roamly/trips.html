@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Trips - Roamly</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #FF6B6B;
+      --coral-light: #FFE5E5;
+      --sage: #7CB69D;
+      --sage-light: #E8F5EE;
+      --sand: #F5F0E8;
+      --charcoal: #2D3436;
+      --gray: #636E72;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--sand);
+      color: var(--charcoal);
+      min-height: 100vh;
+    }
+
+    nav {
+      background: var(--white);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: var(--coral);
+      text-decoration: none;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .btn-primary:hover {
+      background: #ff5252;
+      transform: translateY(-2px);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .page-header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 36px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--gray);
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--white);
+    }
+
+    .tab.active {
+      background: var(--charcoal);
+      color: var(--white);
+    }
+
+    .trips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .trip-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: all 0.3s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .trip-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .trip-card-header {
+      background: linear-gradient(135deg, var(--coral) 0%, #FF8E8E 100%);
+      padding: 24px;
+      color: var(--white);
+      position: relative;
+    }
+
+    .trip-card-header.sage {
+      background: linear-gradient(135deg, var(--sage) 0%, #8BC9A8 100%);
+    }
+
+    .trip-card-header.purple {
+      background: linear-gradient(135deg, #9B59B6 0%, #B47CC7 100%);
+    }
+
+    .trip-emoji {
+      font-size: 48px;
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0.3;
+    }
+
+    .trip-card-header h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .trip-card-header span {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .trip-card-body {
+      padding: 20px 24px;
+    }
+
+    .trip-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .trip-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--gray);
+    }
+
+    .trip-meta-item .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--sand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .trip-members {
+      display: flex;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #E8E8E8;
+    }
+
+    .member-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid var(--white);
+      margin-left: -10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .member-avatar:first-child { margin-left: 0; }
+    .member-avatar.coral { background: var(--coral); }
+    .member-avatar.sage { background: var(--sage); }
+    .member-avatar.purple { background: #9B59B6; }
+    .member-avatar.blue { background: #3498DB; }
+
+    .trip-status {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 100px;
+    }
+
+    .trip-status.planning {
+      background: var(--coral-light);
+      color: var(--coral);
+    }
+
+    .trip-status.ready {
+      background: var(--sage-light);
+      color: var(--sage);
+    }
+
+    .trip-status.completed {
+      background: #E8E8E8;
+      color: var(--gray);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 80px 24px;
+    }
+
+    .empty-state .emoji {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      color: var(--gray);
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* New trip card */
+    .new-trip-card {
+      background: var(--white);
+      border: 2px dashed #D0D0D0;
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      color: var(--gray);
+      min-height: 260px;
+    }
+
+    .new-trip-card:hover {
+      border-color: var(--coral);
+      background: var(--coral-light);
+      color: var(--coral);
+    }
+
+    .new-trip-card .plus {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--sand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 16px;
+      transition: all 0.3s;
+    }
+
+    .new-trip-card:hover .plus {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .new-trip-card span {
+      font-size: 16px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Roamly</a>
+    <a href="create-trip.html" class="btn btn-primary">+ New Trip</a>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>My Trips ✈️</h1>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">All Trips</button>
+      <button class="tab">Planning</button>
+      <button class="tab">Ready</button>
+      <button class="tab">Past Trips</button>
+    </div>
+
+    <div class="trips-grid">
+      <!-- New Trip Card -->
+      <a href="create-trip.html" class="new-trip-card">
+        <div class="plus">+</div>
+        <span>Start a new trip</span>
+      </a>
+
+      <!-- Active Trip -->
+      <a href="trip-detail.html" class="trip-card">
+        <div class="trip-card-header">
+          <h3>Tokyo Adventure</h3>
+          <span>Mar 15 - 22, 2026</span>
+          <span class="trip-emoji">🇯🇵</span>
+        </div>
+        <div class="trip-card-body">
+          <div class="trip-meta">
+            <div class="trip-meta-item">
+              <span class="icon">📍</span>
+              Tokyo, Japan
+            </div>
+            <div class="trip-meta-item">
+              <span class="icon">🌙</span>
+              7 nights • 4 confirmed
+            </div>
+          </div>
+          <div class="trip-members">
+            <div class="member-avatar coral">A</div>
+            <div class="member-avatar sage">S</div>
+            <div class="member-avatar purple">J</div>
+            <span class="trip-status planning">Planning</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Another Trip -->
+      <a href="#" class="trip-card" onclick="alert('Demo trip!')">
+        <div class="trip-card-header sage">
+          <h3>Portugal Road Trip</h3>
+          <span>Jun 1 - 10, 2026</span>
+          <span class="trip-emoji">🇵🇹</span>
+        </div>
+        <div class="trip-card-body">
+          <div class="trip-meta">
+            <div class="trip-meta-item">
+              <span class="icon">📍</span>
+              Lisbon → Porto
+            </div>
+            <div class="trip-meta-item">
+              <span class="icon">🌙</span>
+              9 nights • 0 confirmed
+            </div>
+          </div>
+          <div class="trip-members">
+            <div class="member-avatar coral">A</div>
+            <div class="member-avatar sage">S</div>
+            <span class="trip-status planning">Planning</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Past Trip -->
+      <a href="#" class="trip-card" onclick="alert('Past trip memories!')">
+        <div class="trip-card-header purple">
+          <h3>NYC Weekend</h3>
+          <span>Dec 20 - 22, 2025</span>
+          <span class="trip-emoji">🗽</span>
+        </div>
+        <div class="trip-card-body">
+          <div class="trip-meta">
+            <div class="trip-meta-item">
+              <span class="icon">📍</span>
+              New York City
+            </div>
+            <div class="trip-meta-item">
+              <span class="icon">📸</span>
+              12 places visited
+            </div>
+          </div>
+          <div class="trip-members">
+            <div class="member-avatar coral">A</div>
+            <div class="member-avatar sage">S</div>
+            <div class="member-avatar blue">M</div>
+            <div class="member-avatar purple">K</div>
+            <span class="trip-status completed">Completed</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

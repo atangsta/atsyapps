@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tokyo Adventure - Roamly</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #FF6B6B;
+      --coral-light: #FFE5E5;
+      --sage: #7CB69D;
+      --sage-light: #E8F5EE;
+      --sand: #F5F0E8;
+      --charcoal: #2D3436;
+      --gray: #636E72;
+      --light-gray: #B0B0B0;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--sand);
+      color: var(--charcoal);
+      min-height: 100vh;
+    }
+
+    nav {
+      background: var(--white);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: var(--coral);
+      text-decoration: none;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .btn-primary:hover {
+      background: #ff5252;
+    }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--charcoal);
+      border: 2px solid #E8E8E8;
+    }
+
+    .btn-sage {
+      background: var(--sage);
+      color: var(--white);
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: calc(100vh - 72px);
+    }
+
+    /* Left Column - Ideas Feed */
+    .ideas-column {
+      padding: 32px;
+      border-right: 1px solid #E8E8E8;
+      background: var(--white);
+    }
+
+    .trip-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #E8E8E8;
+    }
+
+    .trip-emoji {
+      font-size: 48px;
+    }
+
+    .trip-info h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+    }
+
+    .trip-meta {
+      display: flex;
+      gap: 16px;
+      color: var(--gray);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .trip-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .members {
+      display: flex;
+      margin-left: auto;
+    }
+
+    .member-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid var(--white);
+      margin-left: -12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .member-avatar:first-child { margin-left: 0; }
+    .member-avatar:hover { transform: scale(1.1); z-index: 1; }
+    .member-avatar.coral { background: var(--coral); }
+    .member-avatar.sage { background: var(--sage); }
+    .member-avatar.purple { background: #9B59B6; }
+    .member-avatar.add {
+      background: var(--white);
+      border: 2px dashed var(--light-gray);
+      color: var(--light-gray);
+      font-size: 20px;
+    }
+
+    /* Link Input */
+    .link-input-section {
+      background: var(--sand);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .link-input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .link-input-row input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 2px solid transparent;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      background: var(--white);
+      transition: border-color 0.2s;
+    }
+
+    .link-input-row input:focus {
+      outline: none;
+      border-color: var(--coral);
+    }
+
+    .link-input-hint {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    .link-input-hint span {
+      background: var(--white);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-right: 8px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--gray);
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--sand);
+    }
+
+    .tab.active {
+      background: var(--charcoal);
+      color: var(--white);
+    }
+
+    .tab .count {
+      background: rgba(255,255,255,0.2);
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    /* Idea Cards */
+    .ideas-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .idea-card {
+      background: var(--white);
+      border: 1px solid #E8E8E8;
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: box-shadow 0.2s;
+    }
+
+    .idea-card:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .idea-card.confirmed {
+      border-color: var(--sage);
+      background: linear-gradient(to right, var(--sage-light), var(--white));
+    }
+
+    .idea-header {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .idea-category {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+
+    .idea-category.food { background: #FFF3E0; color: #E65100; }
+    .idea-category.hotel { background: #E3F2FD; color: #1565C0; }
+    .idea-category.activity { background: #F3E5F5; color: #7B1FA2; }
+
+    .confirmed-badge {
+      background: var(--sage);
+      color: var(--white);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 100px;
+      margin-left: auto;
+    }
+
+    .idea-content {
+      display: flex;
+      gap: 16px;
+    }
+
+    .idea-image {
+      width: 100px;
+      height: 100px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      background: linear-gradient(135deg, var(--coral-light), var(--sage-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      flex-shrink: 0;
+    }
+
+    .idea-details {
+      flex: 1;
+    }
+
+    .idea-details h3 {
+      font-size: 17px;
+      margin-bottom: 4px;
+    }
+
+    .idea-details p {
+      font-size: 14px;
+      color: var(--gray);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .idea-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    .idea-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .idea-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #E8E8E8;
+    }
+
+    .vote-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .vote-btn {
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .vote-btn.yes {
+      background: var(--sage-light);
+      color: var(--sage);
+    }
+
+    .vote-btn.yes:hover, .vote-btn.yes.active {
+      background: var(--sage);
+      color: var(--white);
+    }
+
+    .vote-btn.no {
+      background: var(--coral-light);
+      color: var(--coral);
+    }
+
+    .vote-btn.no:hover, .vote-btn.no.active {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--sand);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: #E8E8E8;
+    }
+
+    /* Comments */
+    .idea-comments {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #E8E8E8;
+    }
+
+    .comment {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .comment-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+
+    .comment-content {
+      background: var(--sand);
+      padding: 12px 16px;
+      border-radius: 16px;
+      border-top-left-radius: 4px;
+      flex: 1;
+    }
+
+    .comment-content strong {
+      font-size: 13px;
+    }
+
+    .comment-content p {
+      font-size: 14px;
+      color: var(--charcoal);
+      margin-top: 4px;
+    }
+
+    /* Right Column - Chat & Summary */
+    .sidebar {
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-section {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .sidebar-section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-ring {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 16px;
+      position: relative;
+    }
+
+    .progress-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring circle {
+      fill: none;
+      stroke-width: 10;
+    }
+
+    .progress-ring .bg {
+      stroke: #E8E8E8;
+    }
+
+    .progress-ring .progress {
+      stroke: var(--sage);
+      stroke-linecap: round;
+      stroke-dasharray: 314;
+      stroke-dashoffset: 157;
+    }
+
+    .progress-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .progress-text .number {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .progress-text .label {
+      font-size: 12px;
+      color: var(--gray);
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--sand);
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+
+    .stat .emoji {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .stat .value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .stat .label {
+      font-size: 12px;
+      color: var(--gray);
+    }
+
+    .generate-btn {
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    /* Chat Section */
+    .chat-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 300px;
+      margin-bottom: 16px;
+    }
+
+    .chat-message {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .chat-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+
+    .chat-bubble {
+      background: var(--sand);
+      padding: 12px 16px;
+      border-radius: 16px;
+      border-top-left-radius: 4px;
+      max-width: 220px;
+    }
+
+    .chat-bubble.mine {
+      background: var(--coral);
+      color: var(--white);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 4px;
+      margin-left: auto;
+    }
+
+    .chat-name {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .chat-text {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #E8E8E8;
+      border-radius: 100px;
+      font-size: 14px;
+    }
+
+    .chat-input input:focus {
+      outline: none;
+      border-color: var(--coral);
+    }
+
+    .chat-input button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--coral);
+      color: var(--white);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    @media (max-width: 1000px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Roamly</a>
+    <div class="nav-actions">
+      <a href="trips.html" class="btn btn-secondary">← Back to Trips</a>
+      <a href="itinerary.html" class="btn btn-sage">View Itinerary</a>
+    </div>
+  </nav>
+
+  <div class="main-layout">
+    <!-- Left Column - Ideas -->
+    <div class="ideas-column">
+      <div class="trip-header">
+        <span class="trip-emoji">🇯🇵</span>
+        <div class="trip-info">
+          <h1>Tokyo Adventure</h1>
+          <div class="trip-meta">
+            <span>📅 Mar 15 - 22, 2026</span>
+            <span>📍 Tokyo, Japan</span>
+          </div>
+        </div>
+        <div class="members">
+          <div class="member-avatar coral">A</div>
+          <div class="member-avatar sage">S</div>
+          <div class="member-avatar purple">J</div>
+          <div class="member-avatar add">+</div>
+        </div>
+      </div>
+
+      <!-- Link Input -->
+      <div class="link-input-section">
+        <div class="link-input-row">
+          <input type="text" placeholder="Paste a link to a restaurant, hotel, or activity..." id="linkInput">
+          <button class="btn btn-primary" onclick="addLink()">Add →</button>
+        </div>
+        <div class="link-input-hint">
+          <span>🍽️ Yelp</span>
+          <span>🏨 Airbnb</span>
+          <span>🎫 TripAdvisor</span>
+          <span>📍 Google Maps</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active">All <span class="count">8</span></button>
+        <button class="tab">🍽️ Food <span class="count">4</span></button>
+        <button class="tab">🏨 Stay <span class="count">2</span></button>
+        <button class="tab">🎯 Activities <span class="count">2</span></button>
+        <button class="tab">✅ Confirmed <span class="count">4</span></button>
+      </div>
+
+      <!-- Ideas List -->
+      <div class="ideas-list">
+        <!-- Confirmed Card -->
+        <div class="idea-card confirmed">
+          <div class="idea-header">
+            <span class="idea-category food">Restaurant</span>
+            <span class="confirmed-badge">✓ Confirmed</span>
+          </div>
+          <div class="idea-content">
+            <div class="idea-image">🍜</div>
+            <div class="idea-details">
+              <h3>Ichiran Ramen Shibuya</h3>
+              <p>Famous tonkotsu ramen chain with solo dining booths. Must-try for ramen lovers!</p>
+              <div class="idea-meta">
+                <span>⭐ 4.5 (2,341)</span>
+                <span>💰 $$</span>
+                <span>📍 Shibuya</span>
+              </div>
+            </div>
+          </div>
+          <div class="idea-actions">
+            <div class="vote-buttons">
+              <button class="vote-btn yes active">👍 3</button>
+              <button class="vote-btn no">👎 0</button>
+            </div>
+            <div class="action-btns">
+              <button class="action-btn">💬</button>
+              <button class="action-btn">🔗</button>
+            </div>
+          </div>
+          <div class="idea-comments">
+            <div class="comment">
+              <div class="comment-avatar" style="background: var(--sage)">S</div>
+              <div class="comment-content">
+                <strong>Susan</strong>
+                <p>Omg yes! I've been wanting to try this place forever 🤤</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Regular Card -->
+        <div class="idea-card">
+          <div class="idea-header">
+            <span class="idea-category hotel">Hotel</span>
+          </div>
+          <div class="idea-content">
+            <div class="idea-image">🏨</div>
+            <div class="idea-details">
+              <h3>Shibuya Stream Excel Hotel</h3>
+              <p>Modern hotel right above Shibuya Station. Perfect location for exploring!</p>
+              <div class="idea-meta">
+                <span>⭐ 4.7 (1,823)</span>
+                <span>💰 $$$</span>
+                <span>📍 Shibuya</span>
+              </div>
+            </div>
+          </div>
+          <div class="idea-actions">
+            <div class="vote-buttons">
+              <button class="vote-btn yes active">👍 2</button>
+              <button class="vote-btn no">👎 1</button>
+            </div>
+            <div class="action-btns">
+              <button class="action-btn">💬</button>
+              <button class="action-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Card -->
+        <div class="idea-card confirmed">
+          <div class="idea-header">
+            <span class="idea-category activity">Activity</span>
+            <span class="confirmed-badge">✓ Confirmed</span>
+          </div>
+          <div class="idea-content">
+            <div class="idea-image">⛩️</div>
+            <div class="idea-details">
+              <h3>TeamLab Borderless</h3>
+              <p>Immersive digital art museum. Book tickets in advance - sells out fast!</p>
+              <div class="idea-meta">
+                <span>⭐ 4.8 (5,291)</span>
+                <span>💰 ¥3,200</span>
+                <span>📍 Azabudai Hills</span>
+              </div>
+            </div>
+          </div>
+          <div class="idea-actions">
+            <div class="vote-buttons">
+              <button class="vote-btn yes active">👍 3</button>
+              <button class="vote-btn no">👎 0</button>
+            </div>
+            <div class="action-btns">
+              <button class="action-btn">💬</button>
+              <button class="action-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Another food card -->
+        <div class="idea-card">
+          <div class="idea-header">
+            <span class="idea-category food">Restaurant</span>
+          </div>
+          <div class="idea-content">
+            <div class="idea-image">🍣</div>
+            <div class="idea-details">
+              <h3>Sushi Dai at Toyosu Market</h3>
+              <p>Legendary sushi spot at the new fish market. Expect 2-3 hour wait, but worth it!</p>
+              <div class="idea-meta">
+                <span>⭐ 4.9 (892)</span>
+                <span>💰 $$$$</span>
+                <span>📍 Toyosu</span>
+              </div>
+            </div>
+          </div>
+          <div class="idea-actions">
+            <div class="vote-buttons">
+              <button class="vote-btn yes">👍 1</button>
+              <button class="vote-btn no">👎 1</button>
+            </div>
+            <div class="action-btns">
+              <button class="action-btn">💬</button>
+              <button class="action-btn">🔗</button>
+            </div>
+          </div>
+          <div class="idea-comments">
+            <div class="comment">
+              <div class="comment-avatar" style="background: #9B59B6">J</div>
+              <div class="comment-content">
+                <strong>Jake</strong>
+                <p>3 hour wait?? Can we do a different sushi place? 😅</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column - Sidebar -->
+    <div class="sidebar">
+      <!-- Progress -->
+      <div class="sidebar-section">
+        <h3>📊 Trip Progress</h3>
+        <div class="progress-ring">
+          <svg width="120" height="120">
+            <circle class="bg" cx="60" cy="60" r="50"/>
+            <circle class="progress" cx="60" cy="60" r="50"/>
+          </svg>
+          <div class="progress-text">
+            <span class="number">4/8</span>
+            <span class="label">Confirmed</span>
+          </div>
+        </div>
+        <div class="summary-stats">
+          <div class="stat">
+            <div class="emoji">🍽️</div>
+            <div class="value">2</div>
+            <div class="label">Restaurants</div>
+          </div>
+          <div class="stat">
+            <div class="emoji">🏨</div>
+            <div class="value">1</div>
+            <div class="label">Hotel</div>
+          </div>
+          <div class="stat">
+            <div class="emoji">🎯</div>
+            <div class="value">1</div>
+            <div class="label">Activity</div>
+          </div>
+          <div class="stat">
+            <div class="emoji">☕</div>
+            <div class="value">0</div>
+            <div class="label">Cafes</div>
+          </div>
+        </div>
+        <a href="itinerary.html" class="btn btn-sage generate-btn">
+          ✨ Generate Itinerary
+        </a>
+      </div>
+
+      <!-- Chat -->
+      <div class="sidebar-section chat-section">
+        <h3>💬 Group Chat</h3>
+        <div class="chat-messages">
+          <div class="chat-message">
+            <div class="chat-avatar" style="background: var(--sage)">S</div>
+            <div>
+              <div class="chat-name">Susan</div>
+              <div class="chat-bubble">
+                <div class="chat-text">Should we do 2 nights in Shibuya and 3 in Shinjuku?</div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-message">
+            <div class="chat-avatar" style="background: #9B59B6">J</div>
+            <div>
+              <div class="chat-name">Jake</div>
+              <div class="chat-bubble">
+                <div class="chat-text">Works for me! More nightlife in Shinjuku 🍻</div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-message">
+            <div class="chat-bubble mine">
+              <div class="chat-text">Perfect, I'll look for hotels in both areas</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <input type="text" placeholder="Type a message...">
+          <button>→</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
+    // Vote buttons
+    document.querySelectorAll('.vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const container = btn.closest('.vote-buttons');
+        const isYes = btn.classList.contains('yes');
+        
+        if (btn.classList.contains('active')) {
+          btn.classList.remove('active');
+        } else {
+          container.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+
+    // Add link simulation
+    function addLink() {
+      const input = document.getElementById('linkInput');
+      if (input.value) {
+        alert('Link parsing coming soon! In the full app, this would fetch metadata and create a rich preview.');
+        input.value = '';
+      }
+    }
+  </script>
+</body>
+</html>

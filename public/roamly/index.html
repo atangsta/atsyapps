@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roamly - Plan Together, Travel Better</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #FF6B6B;
+      --coral-light: #FFE5E5;
+      --sage: #7CB69D;
+      --sage-light: #E8F5EE;
+      --sand: #F5F0E8;
+      --charcoal: #2D3436;
+      --gray: #636E72;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--sand);
+      color: var(--charcoal);
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    nav {
+      background: var(--white);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: var(--coral);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--gray);
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--charcoal);
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .btn-primary:hover {
+      background: #ff5252;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--charcoal);
+      border: 2px solid var(--charcoal);
+    }
+
+    .btn-secondary:hover {
+      background: var(--charcoal);
+      color: var(--white);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--charcoal);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(0,0,0,0.05);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 80px 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .hero-content h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 56px;
+      line-height: 1.1;
+      margin-bottom: 24px;
+    }
+
+    .hero-content h1 span {
+      color: var(--coral);
+    }
+
+    .hero-content p {
+      font-size: 20px;
+      color: var(--gray);
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+    }
+
+    .hero-visual {
+      position: relative;
+    }
+
+    .hero-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      transform: rotate(2deg);
+    }
+
+    .hero-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .trip-emoji {
+      font-size: 32px;
+    }
+
+    .trip-info h3 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .trip-info span {
+      font-size: 14px;
+      color: var(--gray);
+    }
+
+    .trip-members {
+      display: flex;
+      margin-left: auto;
+    }
+
+    .member-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid var(--white);
+      margin-left: -12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .member-avatar:first-child { margin-left: 0; background: var(--coral); }
+    .member-avatar:nth-child(2) { background: var(--sage); }
+    .member-avatar:nth-child(3) { background: #9B59B6; }
+
+    .link-preview {
+      background: var(--sand);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .link-preview-img {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--coral-light), var(--sage-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    .link-preview-content h4 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .link-preview-content p {
+      font-size: 13px;
+      color: var(--gray);
+      margin-bottom: 8px;
+    }
+
+    .link-preview-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .link-preview-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--gray);
+    }
+
+    .vote-bar {
+      display: flex;
+      gap: 8px;
+    }
+
+    .vote-btn {
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .vote-yes {
+      background: var(--sage-light);
+      color: var(--sage);
+    }
+
+    .vote-yes:hover, .vote-yes.active {
+      background: var(--sage);
+      color: var(--white);
+    }
+
+    .vote-no {
+      background: var(--coral-light);
+      color: var(--coral);
+    }
+
+    .floating-card {
+      position: absolute;
+      background: var(--white);
+      padding: 16px 20px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+    }
+
+    .floating-card.chat {
+      bottom: -20px;
+      left: -40px;
+      transform: rotate(-3deg);
+    }
+
+    .floating-card.vote {
+      top: 20px;
+      right: -30px;
+      transform: rotate(3deg);
+    }
+
+    .chat-bubble {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--sage);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 80px 32px;
+      background: var(--white);
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 64px;
+    }
+
+    .section-header h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    .section-header p {
+      font-size: 18px;
+      color: var(--gray);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .feature-card {
+      background: var(--sand);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+    }
+
+    .feature-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 20px;
+    }
+
+    .feature-card:nth-child(1) .feature-icon { background: var(--coral-light); }
+    .feature-card:nth-child(2) .feature-icon { background: var(--sage-light); }
+    .feature-card:nth-child(3) .feature-icon { background: #F0E6FF; }
+
+    .feature-card h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card p {
+      font-size: 15px;
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    /* How It Works */
+    .how-it-works {
+      padding: 80px 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .step {
+      text-align: center;
+      position: relative;
+    }
+
+    .step::after {
+      content: '→';
+      position: absolute;
+      right: -20px;
+      top: 40px;
+      font-size: 24px;
+      color: var(--coral);
+    }
+
+    .step:last-child::after {
+      display: none;
+    }
+
+    .step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--coral);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 20px;
+      margin: 0 auto 16px;
+    }
+
+    .step h4 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--gray);
+    }
+
+    /* CTA Section */
+    .cta {
+      background: linear-gradient(135deg, var(--coral) 0%, #FF8E8E 100%);
+      padding: 80px 32px;
+      text-align: center;
+      color: var(--white);
+    }
+
+    .cta h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .cta p {
+      font-size: 20px;
+      opacity: 0.9;
+      margin-bottom: 32px;
+    }
+
+    .cta .btn-secondary {
+      border-color: var(--white);
+      color: var(--white);
+    }
+
+    .cta .btn-secondary:hover {
+      background: var(--white);
+      color: var(--coral);
+    }
+
+    /* Footer */
+    footer {
+      background: var(--charcoal);
+      color: var(--white);
+      padding: 48px 32px;
+      text-align: center;
+    }
+
+    footer .logo {
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    footer p {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .steps {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .step::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <a href="#" class="logo">Roamly</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="trips.html" class="btn btn-ghost">My Trips</a>
+      <a href="create-trip.html" class="btn btn-primary">Start Planning</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Plan together,<br><span>travel better</span></h1>
+      <p>No more juggling tabs or endless group texts. Roamly connects every piece of your trip in one effortless plan.</p>
+      <div class="hero-actions">
+        <a href="create-trip.html" class="btn btn-primary">
+          Start a Trip →
+        </a>
+        <a href="#how-it-works" class="btn btn-secondary">See How It Works</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hero-card-header">
+          <span class="trip-emoji">🇯🇵</span>
+          <div class="trip-info">
+            <h3>Tokyo Adventure</h3>
+            <span>Mar 15 - 22, 2026</span>
+          </div>
+          <div class="trip-members">
+            <div class="member-avatar">A</div>
+            <div class="member-avatar">S</div>
+            <div class="member-avatar">J</div>
+          </div>
+        </div>
+        <div class="link-preview">
+          <div class="link-preview-img">🍜</div>
+          <div class="link-preview-content">
+            <h4>Ichiran Ramen Shibuya</h4>
+            <p>Famous tonkotsu ramen chain with private booths</p>
+            <div class="link-preview-meta">
+              <span>⭐ 4.5</span>
+              <span>💰 $$</span>
+              <span>📍 Shibuya</span>
+            </div>
+          </div>
+        </div>
+        <div class="vote-bar">
+          <button class="vote-btn vote-yes active">👍 3</button>
+          <button class="vote-btn vote-no">👎 0</button>
+        </div>
+      </div>
+      <div class="floating-card chat">
+        <div class="chat-bubble">
+          <div class="chat-avatar">S</div>
+          <span>Omg yes! I've been wanting to try this 🤤</span>
+        </div>
+      </div>
+      <div class="floating-card vote">
+        <span>✅ Added to itinerary!</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="section-header">
+      <h2>Everything in one place</h2>
+      <p>Stop switching between apps. Roamly brings it all together.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔗</div>
+        <h3>Drop Any Link</h3>
+        <p>Paste links from Yelp, OpenTable, Airbnb, TripAdvisor, or anywhere else. We'll turn them into rich previews everyone can see.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>Decide Together</h3>
+        <p>Chat, react with emojis, or start votes to see what your crew actually wants. No more endless group text debates.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h3>Smart Itinerary</h3>
+        <p>Once you've decided, we'll generate an optimized day-by-day plan based on locations, timing, and reservations.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="section-header">
+      <h2>How Roamly works</h2>
+      <p>From ideas to itinerary in four simple steps</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h4>Create a Trip</h4>
+        <p>Set your destination, dates, and invite your travel crew</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h4>Drop Links</h4>
+        <p>Paste hotels, restaurants, activities from any site</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h4>Vote & Discuss</h4>
+        <p>React, comment, and vote on what makes the cut</p>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <h4>Get Your Itinerary</h4>
+        <p>We optimize and generate your day-by-day plan</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <h2>Ready to plan your next adventure?</h2>
+    <p>Join thousands of travelers who've ditched the spreadsheets</p>
+    <a href="create-trip.html" class="btn btn-secondary">Start Planning Free →</a>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <a href="#" class="logo">Roamly</a>
+    <p>© 2026 Roamly. Made with ❤️ for travelers everywhere.</p>
+  </footer>
+</body>
+</html>

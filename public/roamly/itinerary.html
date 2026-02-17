@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tokyo Adventure - Itinerary - Roamly</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #FF6B6B;
+      --coral-light: #FFE5E5;
+      --sage: #7CB69D;
+      --sage-light: #E8F5EE;
+      --sand: #F5F0E8;
+      --charcoal: #2D3436;
+      --gray: #636E72;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--sand);
+      color: var(--charcoal);
+      min-height: 100vh;
+    }
+
+    nav {
+      background: var(--white);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: var(--coral);
+      text-decoration: none;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--charcoal);
+      border: 2px solid #E8E8E8;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .itinerary-header {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .trip-emoji {
+      font-size: 56px;
+    }
+
+    .header-info h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 20px;
+      color: var(--gray);
+      font-size: 15px;
+    }
+
+    .header-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .quick-stat {
+      background: var(--sand);
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+
+    .quick-stat .icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .quick-stat .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--charcoal);
+    }
+
+    .quick-stat .label {
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    /* Day Cards */
+    .day-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .day-header {
+      background: linear-gradient(135deg, var(--coral) 0%, #FF8E8E 100%);
+      color: var(--white);
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .day-header h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 24px;
+    }
+
+    .day-date {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .day-content {
+      padding: 24px;
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 32px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #E8E8E8;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 24px;
+    }
+
+    .timeline-item:last-child {
+      padding-bottom: 0;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 3px solid var(--coral);
+    }
+
+    .timeline-dot.food { border-color: #E65100; }
+    .timeline-dot.hotel { border-color: #1565C0; }
+    .timeline-dot.activity { border-color: #7B1FA2; }
+    .timeline-dot.transport { border-color: var(--sage); }
+
+    .timeline-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray);
+      margin-bottom: 6px;
+    }
+
+    .timeline-card {
+      background: var(--sand);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .timeline-card-image {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .timeline-card-content h4 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .timeline-card-content p {
+      font-size: 13px;
+      color: var(--gray);
+      margin-bottom: 8px;
+    }
+
+    .timeline-card-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .timeline-card-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--gray);
+    }
+
+    .timeline-card-actions {
+      margin-left: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-link {
+      font-size: 12px;
+      color: var(--coral);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .action-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Transport connector */
+    .transport-connector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      color: var(--gray);
+      font-size: 13px;
+    }
+
+    .transport-connector .line {
+      flex: 1;
+      height: 1px;
+      background: #E8E8E8;
+    }
+
+    .transport-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--sage-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* Status badges */
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+
+    .status-badge.booked {
+      background: var(--sage-light);
+      color: var(--sage);
+    }
+
+    .status-badge.pending {
+      background: #FFF3E0;
+      color: #E65100;
+    }
+
+    /* Floating action */
+    .floating-action {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .fab {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 24px;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.2s;
+    }
+
+    .fab:hover {
+      transform: scale(1.1);
+    }
+
+    .fab.primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .fab.secondary {
+      background: var(--white);
+      color: var(--charcoal);
+    }
+
+    @media (max-width: 600px) {
+      .quick-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Roamly</a>
+    <div class="nav-actions">
+      <a href="trip-detail.html" class="btn btn-secondary">← Back to Planning</a>
+      <button class="btn btn-primary">📤 Share Itinerary</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="itinerary-header">
+      <div class="header-top">
+        <span class="trip-emoji">🇯🇵</span>
+        <div class="header-info">
+          <h1>Tokyo Adventure</h1>
+          <div class="header-meta">
+            <span>📅 Mar 15 - 22, 2026</span>
+            <span>👥 3 travelers</span>
+            <span>🌙 7 nights</span>
+          </div>
+        </div>
+      </div>
+      <div class="quick-stats">
+        <div class="quick-stat">
+          <div class="icon">✈️</div>
+          <div class="value">JFK→NRT</div>
+          <div class="label">Flight</div>
+        </div>
+        <div class="quick-stat">
+          <div class="icon">🏨</div>
+          <div class="value">2</div>
+          <div class="label">Hotels</div>
+        </div>
+        <div class="quick-stat">
+          <div class="icon">🍽️</div>
+          <div class="value">5</div>
+          <div class="label">Restaurants</div>
+        </div>
+        <div class="quick-stat">
+          <div class="icon">🎯</div>
+          <div class="value">4</div>
+          <div class="label">Activities</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 1 -->
+    <div class="day-card">
+      <div class="day-header">
+        <h2>Day 1 - Arrival</h2>
+        <span class="day-date">Sunday, March 15</span>
+      </div>
+      <div class="day-content">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot transport"></div>
+            <div class="timeline-time">3:30 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">✈️</div>
+              <div class="timeline-card-content">
+                <h4>Arrive at Narita Airport (NRT)</h4>
+                <p>Terminal 1 • Flight JL005 from JFK</p>
+                <div class="timeline-card-meta">
+                  <span class="status-badge booked">✓ Confirmed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="transport-connector">
+            <span class="transport-icon">🚃</span>
+            <span class="line"></span>
+            <span>~90 min via Narita Express</span>
+            <span class="line"></span>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot hotel"></div>
+            <div class="timeline-time">6:00 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">🏨</div>
+              <div class="timeline-card-content">
+                <h4>Check in: Shibuya Stream Excel Hotel</h4>
+                <p>Above Shibuya Station • Mar 15-17 (2 nights)</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.7</span>
+                  <span class="status-badge pending">Book Now</span>
+                </div>
+              </div>
+              <div class="timeline-card-actions">
+                <a href="#" class="action-link">Open in Maps →</a>
+                <a href="#" class="action-link">Book Room →</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="transport-connector">
+            <span class="transport-icon">🚶</span>
+            <span class="line"></span>
+            <span>5 min walk</span>
+            <span class="line"></span>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot food"></div>
+            <div class="timeline-time">7:30 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">🍜</div>
+              <div class="timeline-card-content">
+                <h4>Dinner: Ichiran Ramen Shibuya</h4>
+                <p>Famous tonkotsu ramen with solo booths</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.5</span>
+                  <span>💰 $$</span>
+                  <span class="status-badge booked">✓ No reservation needed</span>
+                </div>
+              </div>
+              <div class="timeline-card-actions">
+                <a href="#" class="action-link">Open in Maps →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 2 -->
+    <div class="day-card">
+      <div class="day-header" style="background: linear-gradient(135deg, var(--sage) 0%, #8BC9A8 100%);">
+        <h2>Day 2 - Shibuya & Harajuku</h2>
+        <span class="day-date">Monday, March 16</span>
+      </div>
+      <div class="day-content">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot food"></div>
+            <div class="timeline-time">9:00 AM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">☕</div>
+              <div class="timeline-card-content">
+                <h4>Breakfast: Blue Bottle Coffee Shibuya</h4>
+                <p>Third-wave coffee + light breakfast</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.4</span>
+                  <span>💰 $$</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="transport-connector">
+            <span class="transport-icon">🚶</span>
+            <span class="line"></span>
+            <span>15 min walk</span>
+            <span class="line"></span>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot activity"></div>
+            <div class="timeline-time">10:30 AM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">⛩️</div>
+              <div class="timeline-card-content">
+                <h4>Meiji Shrine</h4>
+                <p>Serene Shinto shrine in a forested area</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.8</span>
+                  <span>💰 Free</span>
+                  <span>⏱️ ~1.5 hrs</span>
+                </div>
+              </div>
+              <div class="timeline-card-actions">
+                <a href="#" class="action-link">Open in Maps →</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="transport-connector">
+            <span class="transport-icon">🚶</span>
+            <span class="line"></span>
+            <span>10 min walk</span>
+            <span class="line"></span>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot activity"></div>
+            <div class="timeline-time">12:30 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">🛍️</div>
+              <div class="timeline-card-content">
+                <h4>Explore Harajuku & Takeshita Street</h4>
+                <p>Trendy fashion district + street food</p>
+                <div class="timeline-card-meta">
+                  <span>⏱️ ~2 hrs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot food"></div>
+            <div class="timeline-time">3:00 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">🍰</div>
+              <div class="timeline-card-content">
+                <h4>Afternoon treat: Marion Crepes</h4>
+                <p>Famous Harajuku crepe shop since 1976</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.3</span>
+                  <span>💰 $</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="transport-connector">
+            <span class="transport-icon">🚃</span>
+            <span class="line"></span>
+            <span>~45 min via Yurikamome</span>
+            <span class="line"></span>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot activity"></div>
+            <div class="timeline-time">5:00 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">✨</div>
+              <div class="timeline-card-content">
+                <h4>TeamLab Borderless</h4>
+                <p>Immersive digital art museum • Timed entry</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.8</span>
+                  <span>💰 ¥3,200</span>
+                  <span class="status-badge booked">✓ Tickets booked</span>
+                </div>
+              </div>
+              <div class="timeline-card-actions">
+                <a href="#" class="action-link">View Tickets →</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot food"></div>
+            <div class="timeline-time">8:00 PM</div>
+            <div class="timeline-card">
+              <div class="timeline-card-image">🍖</div>
+              <div class="timeline-card-content">
+                <h4>Dinner: Gyukatsu Motomura</h4>
+                <p>Beef cutlet you grill at your table</p>
+                <div class="timeline-card-meta">
+                  <span>⭐ 4.6</span>
+                  <span>💰 $$</span>
+                  <span class="status-badge pending">Expect 30min wait</span>
+                </div>
+              </div>
+              <div class="timeline-card-actions">
+                <a href="#" class="action-link">Open in Maps →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- More days indicator -->
+    <div class="day-card" style="text-align: center; padding: 40px;">
+      <span style="font-size: 48px;">📅</span>
+      <h3 style="margin: 16px 0 8px; font-family: 'DM Serif Display', serif; font-size: 24px;">
+        5 more days planned
+      </h3>
+      <p style="color: var(--gray); margin-bottom: 20px;">
+        Including Tsukiji Market, Senso-ji Temple, Akihabara, and more!
+      </p>
+      <button class="btn btn-secondary" onclick="alert('Full itinerary coming soon!')">
+        View Full Itinerary →
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Actions -->
+  <div class="floating-action">
+    <button class="fab secondary" title="Download PDF">📄</button>
+    <button class="fab primary" title="Share">📤</button>
+  </div>
+</body>
+</html>

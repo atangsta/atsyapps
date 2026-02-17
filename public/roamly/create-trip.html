@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create a Trip - Roamly</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --coral: #FF6B6B;
+      --coral-light: #FFE5E5;
+      --sage: #7CB69D;
+      --sage-light: #E8F5EE;
+      --sand: #F5F0E8;
+      --charcoal: #2D3436;
+      --gray: #636E72;
+      --white: #FFFFFF;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--sand);
+      color: var(--charcoal);
+      min-height: 100vh;
+    }
+
+    nav {
+      background: var(--white);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: var(--coral);
+      text-decoration: none;
+    }
+
+    .create-container {
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 0 24px;
+    }
+
+    .create-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .create-header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+
+    .create-header p {
+      color: var(--gray);
+      font-size: 16px;
+    }
+
+    .create-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 40px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .form-group {
+      margin-bottom: 28px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #E8E8E8;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--coral);
+    }
+
+    .form-group input::placeholder, .form-group textarea::placeholder {
+      color: #B0B0B0;
+    }
+
+    .emoji-picker {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .emoji-btn {
+      width: 52px;
+      height: 52px;
+      border: 2px solid #E8E8E8;
+      border-radius: 12px;
+      background: var(--white);
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .emoji-btn:hover {
+      border-color: var(--coral);
+      transform: scale(1.1);
+    }
+
+    .emoji-btn.selected {
+      border-color: var(--coral);
+      background: var(--coral-light);
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .invite-section {
+      background: var(--sand);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+    }
+
+    .invite-input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .invite-input-row input {
+      flex: 1;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--coral);
+      color: var(--white);
+    }
+
+    .btn-primary:hover {
+      background: #ff5252;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--charcoal);
+      border: 2px solid #E8E8E8;
+    }
+
+    .btn-sm {
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+
+    .invited-list {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .invited-chip {
+      background: var(--white);
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .invited-chip .remove {
+      background: none;
+      border: none;
+      color: var(--gray);
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .form-actions {
+      margin-top: 32px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #E8E8E8;
+    }
+
+    .dot.active {
+      background: var(--coral);
+      width: 24px;
+      border-radius: 5px;
+    }
+
+    /* Success Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 48px;
+      text-align: center;
+      max-width: 440px;
+      animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-emoji {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .modal h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .modal p {
+      color: var(--gray);
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Roamly</a>
+  </nav>
+
+  <div class="create-container">
+    <div class="progress-dots">
+      <div class="dot active"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+
+    <div class="create-header">
+      <h1>Create your trip ✈️</h1>
+      <p>Let's get the basics down first</p>
+    </div>
+
+    <div class="create-card">
+      <div class="form-group">
+        <label>Pick a vibe for your trip</label>
+        <div class="emoji-picker">
+          <button class="emoji-btn" data-emoji="🏖️">🏖️</button>
+          <button class="emoji-btn selected" data-emoji="🇯🇵">🇯🇵</button>
+          <button class="emoji-btn" data-emoji="🏔️">🏔️</button>
+          <button class="emoji-btn" data-emoji="🎡">🎡</button>
+          <button class="emoji-btn" data-emoji="🍷">🍷</button>
+          <button class="emoji-btn" data-emoji="🎿">🎿</button>
+          <button class="emoji-btn" data-emoji="🏕️">🏕️</button>
+          <button class="emoji-btn" data-emoji="🌴">🌴</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Trip name</label>
+        <input type="text" placeholder="e.g., Tokyo Adventure 2026" id="tripName" value="Tokyo Adventure">
+      </div>
+
+      <div class="form-group">
+        <label>Where are you going?</label>
+        <input type="text" placeholder="e.g., Tokyo, Japan" id="destination" value="Tokyo, Japan">
+      </div>
+
+      <div class="form-group">
+        <label>When?</label>
+        <div class="date-row">
+          <input type="date" id="startDate" value="2026-03-15">
+          <input type="date" id="endDate" value="2026-03-22">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Invite your travel crew</label>
+        <div class="invite-section">
+          <div class="invite-input-row">
+            <input type="email" placeholder="friend@email.com" id="inviteEmail">
+            <button class="btn btn-secondary btn-sm" onclick="addInvite()">Add</button>
+          </div>
+          <div class="invited-list" id="invitedList">
+            <div class="invited-chip">
+              Susan T. <button class="remove" onclick="this.parentElement.remove()">×</button>
+            </div>
+            <div class="invited-chip">
+              Jake M. <button class="remove" onclick="this.parentElement.remove()">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="index.html" class="btn btn-secondary">Cancel</a>
+        <button class="btn btn-primary" onclick="createTrip()">Create Trip →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div class="modal-overlay" id="successModal">
+    <div class="modal">
+      <div class="modal-emoji">🎉</div>
+      <h2>Trip created!</h2>
+      <p>Tokyo Adventure is ready. Time to start adding ideas!</p>
+      <a href="trip-detail.html" class="btn btn-primary">Go to Trip →</a>
+    </div>
+  </div>
+
+  <script>
+    // Emoji selection
+    document.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+
+    // Add invite
+    function addInvite() {
+      const email = document.getElementById('inviteEmail').value;
+      if (email) {
+        const chip = document.createElement('div');
+        chip.className = 'invited-chip';
+        chip.innerHTML = `${email} <button class="remove" onclick="this.parentElement.remove()">×</button>`;
+        document.getElementById('invitedList').appendChild(chip);
+        document.getElementById('inviteEmail').value = '';
+      }
+    }
+
+    // Create trip
+    function createTrip() {
+      document.getElementById('successModal').classList.add('show');
+    }
+  </script>
+</body>
+</html>
