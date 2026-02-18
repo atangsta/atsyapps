@@ -12,6 +12,9 @@ interface Link {
   image_url: string | null
   category: string | null
   is_confirmed: boolean
+  rating: number | null
+  review_count: number | null
+  price_range: string | null
   votes: { user_id: string; vote: string }[]
   comments: { id: string; user_id: string; text: string; created_at: string }[]
 }
@@ -40,7 +43,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
     setUnfurling(true)
 
     try {
-      // Unfurl the URL to get metadata
       const unfurlResponse = await fetch('/api/unfurl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,6 +54,9 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
         description: null as string | null,
         image_url: null as string | null,
         category: 'other',
+        rating: null as number | null,
+        review_count: null as number | null,
+        price_range: null as string | null,
       }
       
       if (unfurlResponse.ok) {
@@ -60,7 +65,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
       
       setUnfurling(false)
 
-      // Save to database with metadata
       const { error } = await supabase
         .from('links')
         .insert({
@@ -70,6 +74,9 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           description: metadata.description,
           image_url: metadata.image_url,
           category: metadata.category,
+          rating: metadata.rating,
+          review_count: metadata.review_count,
+          price_range: metadata.price_range,
           added_by: userId,
         })
 
@@ -126,6 +133,17 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
     router.refresh()
   }
 
+  const handleDelete = async (linkId: string) => {
+    if (!confirm('Remove this link from the trip?')) return
+    
+    await supabase
+      .from('links')
+      .delete()
+      .eq('id', linkId)
+    
+    router.refresh()
+  }
+
   const getCategoryEmoji = (category: string | null) => {
     switch (category) {
       case 'food': return '🍽️'
@@ -154,7 +172,15 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
     return votes.find(v => v.user_id === userId)?.vote
   }
 
-  // Calculate trip stats
+  const renderStars = (rating: number) => {
+    const fullStars = Math.floor(rating)
+    const hasHalf = rating % 1 >= 0.5
+    const stars = []
+    for (let i = 0; i < fullStars; i++) stars.push('★')
+    if (hasHalf) stars.push('½')
+    return stars.join('')
+  }
+
   const confirmedLinks = trip.links.filter(l => l.is_confirmed)
   const topVoted = [...trip.links].sort((a, b) => {
     const aScore = getVoteCounts(a.votes).total
@@ -165,9 +191,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content */}
         <div className="lg:col-span-2">
-          {/* Add Link */}
           <div className="bg-[#F5F0E8] rounded-2xl p-5 mb-6">
             <form onSubmit={handleAddLink} className="flex gap-3">
               <input
@@ -192,14 +216,11 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
             </div>
           </div>
 
-          {/* Links List */}
           {trip.links.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-2xl">
               <div className="text-5xl mb-4">📍</div>
               <h3 className="text-xl font-serif mb-2">No links yet</h3>
-              <p className="text-gray-600">
-                Paste a link above to start adding ideas!
-              </p>
+              <p className="text-gray-600">Paste a link above to start adding ideas!</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -216,7 +237,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {/* Image Header */}
                     {link.image_url && (
                       <div className="h-40 bg-gray-100 relative overflow-hidden">
                         <img 
@@ -232,23 +252,37 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                             ✓ Confirmed
                           </div>
                         )}
+                        <button
+                          onClick={() => handleDelete(link.id)}
+                          className="absolute top-3 left-3 bg-black/50 hover:bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center transition"
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
                       </div>
                     )}
                     
                     <div className="p-5">
                       <div className="flex gap-4">
-                        {/* Category Icon (only show if no image) */}
                         {!link.image_url && (
-                          <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${
-                            link.is_confirmed ? 'bg-[#E8F5EE]' : 'bg-[#F5F0E8]'
-                          }`}>
-                            {getCategoryEmoji(link.category)}
+                          <div className="relative">
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${
+                              link.is_confirmed ? 'bg-[#E8F5EE]' : 'bg-[#F5F0E8]'
+                            }`}>
+                              {getCategoryEmoji(link.category)}
+                            </div>
+                            <button
+                              onClick={() => handleDelete(link.id)}
+                              className="absolute -top-2 -left-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 w-6 h-6 rounded-full flex items-center justify-center text-xs transition"
+                              title="Remove"
+                            >
+                              ✕
+                            </button>
                           </div>
                         )}
                         
                         <div className="flex-1 min-w-0">
-                          {/* Category Badge */}
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                               link.category === 'hotel' ? 'bg-blue-100 text-blue-700' :
                               link.category === 'food' ? 'bg-orange-100 text-orange-700' :
@@ -257,26 +291,30 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                             }`}>
                               {getCategoryEmoji(link.category)} {getCategoryLabel(link.category)}
                             </span>
-                            {total > 0 && (
-                              <span className="text-xs text-[#7CB69D] font-medium">
-                                +{total} votes
+                            {link.rating && (
+                              <span className="text-xs text-yellow-600 font-medium">
+                                {renderStars(link.rating)} {link.rating.toFixed(1)}
+                                {link.review_count && ` (${link.review_count.toLocaleString()})`}
                               </span>
+                            )}
+                            {link.price_range && (
+                              <span className="text-xs text-green-600 font-medium">
+                                {link.price_range}
+                              </span>
+                            )}
+                            {total > 0 && (
+                              <span className="text-xs text-[#7CB69D] font-medium">+{total} votes</span>
                             )}
                           </div>
                           
-                          {/* Title */}
                           <h3 className="font-semibold text-lg leading-tight mb-1">
                             {link.title || 'Untitled'}
                           </h3>
                           
-                          {/* Description */}
                           {link.description && (
-                            <p className="text-gray-600 text-sm line-clamp-2 mb-2">
-                              {link.description}
-                            </p>
+                            <p className="text-gray-600 text-sm line-clamp-2 mb-2">{link.description}</p>
                           )}
                           
-                          {/* Link */}
                           <a 
                             href={link.url} 
                             target="_blank" 
@@ -288,7 +326,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                         <div className="flex items-center gap-2">
                           <button
@@ -332,9 +369,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           )}
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Progress */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <h3 className="font-semibold mb-4">📊 Trip Progress</h3>
             <div className="text-center mb-4">
@@ -343,26 +378,20 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
               </div>
               <div className="text-sm text-gray-500">Items Confirmed</div>
             </div>
-            
-            {/* Progress bar */}
             <div className="w-full bg-gray-100 rounded-full h-2">
               <div 
                 className="bg-[#7CB69D] h-2 rounded-full transition-all"
                 style={{ width: trip.links.length > 0 ? `${(confirmedLinks.length / trip.links.length) * 100}%` : '0%' }}
               />
             </div>
-            
             {confirmedLinks.length > 0 && confirmedLinks.length === trip.links.length && (
               <div className="mt-4 p-3 bg-[#E8F5EE] rounded-xl text-center">
                 <div className="text-lg mb-1">🎉</div>
-                <div className="text-sm font-medium text-[#7CB69D]">
-                  All items confirmed! Ready to generate itinerary.
-                </div>
+                <div className="text-sm font-medium text-[#7CB69D]">All items confirmed!</div>
               </div>
             )}
           </div>
 
-          {/* Quick Stats */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <h3 className="font-semibold mb-4">📈 Summary</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -397,7 +426,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
             </div>
           </div>
 
-          {/* Top Voted */}
           {topVoted.length > 0 && topVoted.some(l => getVoteCounts(l.votes).total > 0) && (
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <h3 className="font-semibold mb-4">🔥 Top Voted</h3>
@@ -422,7 +450,6 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
             </div>
           )}
 
-          {/* Generate Itinerary CTA */}
           {confirmedLinks.length >= 2 && (
             <div className="bg-gradient-to-br from-[#FF6B6B] to-[#ff8f8f] rounded-2xl p-5 text-white">
               <h3 className="font-semibold mb-2">✨ Ready to plan?</h3>
