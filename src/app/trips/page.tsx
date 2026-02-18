@@ -13,14 +13,10 @@ export default async function TripsPage() {
     redirect('/login')
   }
 
-  // Fetch user's trips (as owner or member)
+  // Fetch user's trips - RLS policies handle access control
   const { data: trips } = await supabase
     .from('trips')
-    .select(`
-      *,
-      trip_members(user_id)
-    `)
-    .or(`created_by.eq.${user.id},trip_members.user_id.eq.${user.id}`)
+    .select('*')
     .order('created_at', { ascending: false })
 
   return (
