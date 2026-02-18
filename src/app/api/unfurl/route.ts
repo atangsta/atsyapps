@@ -92,27 +92,41 @@ function extractMetaTags(html: string): Record<string, string> {
   return tags
 }
 
-// Extract Yelp-specific data from HTML
+// Extract a clean business name from title or URL
+function extractBusinessName(title: string, url: string): string {
+  let name = title
+    .replace(/\s*[|\\-\u2013\u2014:].*/g, '')
+    .replace(/\s*(restaurant|cafe|bar|grill|kitchen|eatery|bistro|nyc|ny|new york|official site|home|welcome).*/gi, '')
+    .replace(/[\u00ae\u2122\u00a9]/g, '')
+    .trim()
+  
+  if (name.length < 3 || /^(home|welcome|menu)$/i.test(name)) {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname.replace('www.', '').replace(/\.(com|net|org|io|co)$/, '')
+    name = hostname.split('.')[0]
+      .replace(/[-_]/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+  }
+  
+  return name.trim()
+}
+
 function extractYelpData(html: string): { rating: number | null; review_count: number | null; price_range: string | null } {
   let rating: number | null = null
   let review_count: number | null = null
   let price_range: string | null = null
 
-  // Try to extract rating from aria-label like "4.5 star rating"
   const ratingMatch = html.match(/aria-label="(\d+\.?\d*)\s*star\s*rating"/i)
   if (ratingMatch) {
     rating = parseFloat(ratingMatch[1])
   }
 
-  // Try JSON-LD structured data
   const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)
   if (jsonLdMatch) {
     for (const jsonBlock of jsonLdMatch) {
       try {
         const jsonContent = jsonBlock.replace(/<script[^>]*>|<\/script>/gi, '')
         const data = JSON.parse(jsonContent)
-        
-        // Handle array of JSON-LD objects
         const items = Array.isArray(data) ? data : [data]
         for (const item of items) {
           if (item.aggregateRating) {
@@ -124,12 +138,10 @@ function extractYelpData(html: string): { rating: number | null; review_count: n
           }
         }
       } catch {
-        // JSON parse error, continue
       }
     }
   }
 
-  // Fallback: look for review count in text like "(1,234 reviews)"
   if (!review_count) {
     const reviewMatch = html.match(/\(?([\d,]+)\s*reviews?\)?/i)
     if (reviewMatch) {
@@ -137,11 +149,10 @@ function extractYelpData(html: string): { rating: number | null; review_count: n
     }
   }
 
-  // Look for price range patterns ($ $$ $$$ $$$$)
   if (!price_range) {
-    const priceMatch = html.match(/aria-label="[^"]*(\${1,4})[^"]*price/i) ||
-                       html.match(/>(\${1,4})</i) ||
-                       html.match(/price[^>]*>(\${1,4})/i)
+    const priceMatch = html.match(/aria-label="[^"]*($\{1,4})[^"]*price/i) ||
+                       html.match(/>($\{1,4})</i) ||
+                       html.match(/price[^>]*>($\{1,4})/i)
     if (priceMatch) {
       price_range = priceMatch[1]
     }
@@ -150,25 +161,21 @@ function extractYelpData(html: string): { rating: number | null; review_count: n
   return { rating, review_count, price_range }
 }
 
-// Extract TripAdvisor-specific data
 function extractTripAdvisorData(html: string): { rating: number | null; review_count: number | null; price_range: string | null } {
   let rating: number | null = null
   let review_count: number | null = null
   let price_range: string | null = null
 
-  // TripAdvisor uses bubbles for ratings (e.g., "bubble_45" = 4.5 stars)
   const bubbleMatch = html.match(/bubble_(\d)(\d)/i)
   if (bubbleMatch) {
     rating = parseInt(bubbleMatch[1], 10) + parseInt(bubbleMatch[2], 10) / 10
   }
 
-  // Look for review count
   const reviewMatch = html.match(/([\d,]+)\s*reviews?/i)
   if (reviewMatch) {
     review_count = parseInt(reviewMatch[1].replace(/,/g, ''), 10)
   }
 
-  // Try JSON-LD
   const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)
   if (jsonLdMatch) {
     for (const jsonBlock of jsonLdMatch) {
@@ -186,7 +193,6 @@ function extractTripAdvisorData(html: string): { rating: number | null; review_c
           }
         }
       } catch {
-        // Continue on error
       }
     }
   }
@@ -194,13 +200,11 @@ function extractTripAdvisorData(html: string): { rating: number | null; review_c
   return { rating, review_count, price_range }
 }
 
-// Extract Google Maps data
 function extractGoogleMapsData(html: string): { rating: number | null; review_count: number | null; price_range: string | null } {
   let rating: number | null = null
   let review_count: number | null = null
   let price_range: string | null = null
 
-  // Google embeds rating in meta or aria labels
   const ratingMatch = html.match(/(\d+\.?\d*)\s*stars?/i)
   if (ratingMatch) {
     rating = parseFloat(ratingMatch[1])
@@ -214,13 +218,11 @@ function extractGoogleMapsData(html: string): { rating: number | null; review_co
   return { rating, review_count, price_range }
 }
 
-// Extract OpenTable data
 function extractOpenTableData(html: string): { rating: number | null; review_count: number | null; price_range: string | null } {
   let rating: number | null = null
   let review_count: number | null = null
   let price_range: string | null = null
 
-  // OpenTable uses JSON-LD extensively
   const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)
   if (jsonLdMatch) {
     for (const jsonBlock of jsonLdMatch) {
@@ -238,12 +240,106 @@ function extractOpenTableData(html: string): { rating: number | null; review_cou
           }
         }
       } catch {
-        // Continue
       }
     }
   }
 
   return { rating, review_count, price_range }
+}
+
+async function searchYelpForRatings(businessName: string): Promise<{ rating: number | null; review_count: number | null; price_range: string | null; yelpUrl: string | null }> {
+  const result = { rating: null as number | null, review_count: null as number | null, price_range: null as string | null, yelpUrl: null as string | null }
+  
+  try {
+    const searchQuery = encodeURIComponent(businessName)
+    const searchUrl = `https://www.yelp.com/search?find_desc=${searchQuery}&find_loc=New+York%2C+NY`
+    
+    const searchResponse = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    })
+    
+    if (!searchResponse.ok) {
+      return result
+    }
+    
+    const searchHtml = await searchResponse.text()
+    
+    const bizLinkMatch = searchHtml.match(/href="(\/biz\/[^"?]+)"/i)
+    if (!bizLinkMatch) {
+      return result
+    }
+    
+    const bizPath = bizLinkMatch[1]
+    const bizUrl = `https://www.yelp.com${bizPath}`
+    result.yelpUrl = bizUrl
+    
+    const bizResponse = await fetch(bizUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    })
+    
+    if (!bizResponse.ok) {
+      return result
+    }
+    
+    const bizHtml = await bizResponse.text()
+    const yelpData = extractYelpData(bizHtml)
+    
+    result.rating = yelpData.rating
+    result.review_count = yelpData.review_count
+    result.price_range = yelpData.price_range
+    
+  } catch (error) {
+    console.error('Yelp search error:', error)
+  }
+  
+  return result
+}
+
+async function searchGoogleForRatings(businessName: string): Promise<{ rating: number | null; review_count: number | null; price_range: string | null }> {
+  const result = { rating: null as number | null, review_count: null as number | null, price_range: null as string | null }
+  
+  try {
+    const searchQuery = encodeURIComponent(`${businessName} restaurant reviews rating`)
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${searchQuery}`
+    
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    })
+    
+    if (!response.ok) {
+      return result
+    }
+    
+    const html = await response.text()
+    
+    const ratingMatch = html.match(/(\d+\.?\d*)\s*(?:out of 5|\/5|stars?|\u2b50)/i)
+    if (ratingMatch) {
+      const rating = parseFloat(ratingMatch[1])
+      if (rating >= 1 && rating <= 5) {
+        result.rating = rating
+      }
+    }
+    
+    const reviewMatch = html.match(/([\d,]+)\s*reviews?/i)
+    if (reviewMatch) {
+      result.review_count = parseInt(reviewMatch[1].replace(/,/g, ''), 10)
+    }
+    
+  } catch (error) {
+    console.error('Search error:', error)
+  }
+  
+  return result
 }
 
 export async function POST(request: NextRequest) {
@@ -289,10 +385,11 @@ export async function POST(request: NextRequest) {
     }
 
     const tags = extractMetaTags(html)
-    const category = detectCategory(url, tags['og:type'])
+    let category = detectCategory(url, tags['og:type'])
     
-    // Extract ratings based on the source
     let reviewData = { rating: null as number | null, review_count: null as number | null, price_range: null as string | null }
+    
+    const isReviewSite = /yelp\.com|tripadvisor\.com|google\.com\/maps|maps\.google|opentable\.com/i.test(url)
     
     if (/yelp\.com/i.test(url)) {
       reviewData = extractYelpData(html)
@@ -302,6 +399,32 @@ export async function POST(request: NextRequest) {
       reviewData = extractGoogleMapsData(html)
     } else if (/opentable\.com/i.test(url)) {
       reviewData = extractOpenTableData(html)
+    }
+    
+    if (!reviewData.rating && !isReviewSite) {
+      const title = tags['og:title'] || tags['twitter:title'] || tags['title'] || ''
+      const businessName = extractBusinessName(title, url)
+      
+      if (businessName.length >= 3) {
+        console.log(`Searching Yelp for: "${businessName}"`)
+        
+        const yelpResult = await searchYelpForRatings(businessName)
+        if (yelpResult.rating) {
+          reviewData = {
+            rating: yelpResult.rating,
+            review_count: yelpResult.review_count,
+            price_range: yelpResult.price_range,
+          }
+          if (category === 'other') {
+            category = 'food'
+          }
+        } else {
+          const searchResult = await searchGoogleForRatings(businessName)
+          if (searchResult.rating) {
+            reviewData = searchResult
+          }
+        }
+      }
     }
     
     const result: UnfurlResult = {
@@ -315,14 +438,20 @@ export async function POST(request: NextRequest) {
       price_range: reviewData.price_range,
     }
     
-    // Clean up title
-    if (result.title && result.site_name) {
-      result.title = result.title
-        .replace(new RegExp(`\\s*[|\\-–—]\\s*${result.site_name}\\s*$`, 'i'), '')
-        .trim()
+    if (result.title) {
+      if (/t-shirt|shirt|merch|product|shop|cart|checkout/i.test(result.title)) {
+        const urlObj = new URL(url)
+        const hostname = urlObj.hostname.replace('www.', '').replace(/\.(com|net|org|io|co)$/, '')
+        result.title = hostname.charAt(0).toUpperCase() + hostname.slice(1)
+      }
+      
+      if (result.site_name) {
+        result.title = result.title
+          .replace(new RegExp(`\\s*[|\\-\u2013\u2014]\\s*${result.site_name}\\s*$`, 'i'), '')
+          .trim()
+      }
     }
     
-    // Make image URL absolute
     if (result.image_url && !result.image_url.startsWith('http')) {
       const urlObj = new URL(url)
       result.image_url = result.image_url.startsWith('/')
