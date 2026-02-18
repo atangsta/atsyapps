@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const [loading, setLoading] = useState(true)
+  const [linkUrl, setLinkUrl] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -22,125 +23,96 @@ export default function Home() {
     checkUser()
   }, [supabase, router])
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Store link in session/localStorage and redirect to signup
+    if (linkUrl.trim()) {
+      sessionStorage.setItem('pendingLink', linkUrl)
+    }
+    router.push('/signup')
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center">
-        <div className="text-4xl font-serif text-[#FF6B6B] animate-pulse">Roamly</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-4xl font-serif text-gray-800 animate-pulse">Roamly</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F0E8]">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-serif text-[#FF6B6B]">Roamly</div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-gray-700 hover:text-[#FF6B6B] transition">
-              Log in
-            </Link>
-            <Link 
-              href="/signup" 
-              className="bg-[#FF6B6B] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#ff5252] transition"
-            >
-              Get Started
-            </Link>
-          </div>
+      <nav className="absolute top-0 left-0 right-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 py-6 flex justify-between items-center">
+          {/* Hamburger Menu */}
+          <button className="p-2 hover:bg-gray-100 rounded-lg transition">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          
+          {/* Log In Button */}
+          <Link 
+            href="/login" 
+            className="px-6 py-2.5 bg-[#FFF8E7] text-gray-800 rounded-full font-medium hover:bg-[#FFEFC7] transition border border-[#F0E6D0]"
+          >
+            Log In
+          </Link>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="max-w-6xl mx-auto px-4 py-20 text-center">
-        <div className="inline-block bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm text-gray-600 mb-6">
-          ✨ Plan trips with friends, not spreadsheets
-        </div>
-        
-        <h1 className="text-5xl md:text-7xl font-serif mb-6">
-          Group trips,<br />
-          <span className="text-[#FF6B6B]">finally organized</span>
+      {/* Main Content */}
+      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+        <h1 className="text-4xl md:text-5xl font-serif text-gray-800 mb-12">
+          Start your trip
         </h1>
         
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-10">
-          Drop links, vote on ideas, chat with your crew, and watch your itinerary build itself. 
-          No more scattered WhatsApp threads and lost Google Docs.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link 
-            href="/signup"
-            className="inline-block bg-[#FF6B6B] text-white px-10 py-4 rounded-full text-lg font-semibold hover:bg-[#ff5252] hover:scale-105 transition shadow-lg shadow-[#FF6B6B]/30"
-          >
-            Start Planning Free →
-          </Link>
-          <Link 
-            href="/login"
-            className="inline-block bg-white text-gray-700 px-10 py-4 rounded-full text-lg font-semibold hover:bg-gray-50 transition border-2 border-gray-200"
-          >
-            Sign In
-          </Link>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-serif text-center mb-12">How it works</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="text-4xl mb-4">🔗</div>
-            <h3 className="text-xl font-semibold mb-2">Drop links</h3>
-            <p className="text-gray-600">
-              Found a cool Airbnb? Amazing restaurant? Just paste the link. 
-              We&apos;ll unfurl it into a beautiful card.
-            </p>
+        {/* Link Input */}
+        <form onSubmit={handleSubmit} className="w-full max-w-xl">
+          <div className="relative">
+            <input
+              type="text"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="Drop a link here"
+              className="w-full px-6 py-4 text-lg bg-white border border-gray-200 rounded-full focus:outline-none focus:border-gray-400 transition pr-14"
+            />
+            <button 
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 8 12 16" />
+                <polyline points="8 12 12 8 16 12" />
+              </svg>
+            </button>
           </div>
+        </form>
+      </div>
 
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="text-4xl mb-4">👍</div>
-            <h3 className="text-xl font-semibold mb-2">Vote together</h3>
-            <p className="text-gray-600">
-              Everyone votes on what they love. See what the group actually wants, 
-              not just what one person planned.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="text-4xl mb-4">📅</div>
-            <h3 className="text-xl font-semibold mb-2">Auto-itinerary</h3>
-            <p className="text-gray-600">
-              Drag approved items to your day-by-day plan. 
-              Pull it up on your phone while you&apos;re actually there.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof */}
-      <section className="bg-white py-20">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <div className="text-6xl mb-6">✈️</div>
-          <h2 className="text-3xl font-serif mb-4">Ready for your next adventure?</h2>
-          <p className="text-gray-600 mb-8 max-w-xl mx-auto">
-            Join travelers who are tired of &quot;let&apos;s just figure it out when we get there&quot; 
-            and want a plan that everyone&apos;s excited about.
-          </p>
-          <Link 
-            href="/signup"
-            className="inline-block bg-[#FF6B6B] text-white px-10 py-4 rounded-full text-lg font-semibold hover:bg-[#ff5252] transition"
-          >
-            Create Your First Trip
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-[#F5F0E8] border-t border-gray-200 py-8">
-        <div className="max-w-6xl mx-auto px-4 text-center text-gray-500">
-          <div className="text-xl font-serif text-[#FF6B6B] mb-2">Roamly</div>
-          <p className="text-sm">Built with love for travelers who plan together 🌍</p>
-        </div>
-      </footer>
+      {/* Cloud Mascot - Bottom Left */}
+      <div className="absolute bottom-0 left-0 pointer-events-none">
+        <svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Background cloud shape */}
+          <ellipse cx="150" cy="240" rx="180" ry="100" fill="#FFF8E7" />
+          <ellipse cx="280" cy="200" rx="140" ry="90" fill="#FFF8E7" />
+          <ellipse cx="100" cy="200" rx="100" ry="70" fill="#FFF8E7" />
+          
+          {/* Face */}
+          <g transform="translate(100, 180)">
+            {/* Left eye - closed/happy */}
+            <path d="M30 20 Q40 10 50 20" stroke="#4A4A4A" strokeWidth="3" strokeLinecap="round" fill="none" />
+            {/* Right eye - closed/happy */}
+            <path d="M70 20 Q80 10 90 20" stroke="#4A4A4A" strokeWidth="3" strokeLinecap="round" fill="none" />
+            {/* Smile */}
+            <path d="M45 45 Q60 60 75 45" stroke="#4A4A4A" strokeWidth="3" strokeLinecap="round" fill="none" />
+          </g>
+        </svg>
+      </div>
     </div>
   )
 }

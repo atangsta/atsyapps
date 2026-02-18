@@ -28,10 +28,23 @@ interface Trip {
   messages: { id: string; user_id: string; text: string; created_at: string }[]
 }
 
+type Category = 'all' | 'hotel' | 'food' | 'activity' | 'other'
+
+const CATEGORIES = [
+  { id: 'hotel' as Category, label: 'Hotels', emoji: '🏨' },
+  { id: 'food' as Category, label: 'Meals', emoji: '🍽️' },
+  { id: 'activity' as Category, label: 'Activities', emoji: '🎯' },
+  { id: 'other' as Category, label: 'Other', emoji: '🔗' },
+]
+
 export default function TripContent({ trip, userId }: { trip: Trip; userId: string }) {
   const [linkUrl, setLinkUrl] = useState('')
   const [adding, setAdding] = useState(false)
   const [unfurling, setUnfurling] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<Category>('all')
+  const [selectedLink, setSelectedLink] = useState<Link | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [newComment, setNewComment] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -98,370 +111,328 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
 
     if (existingVote) {
       if (existingVote.vote === voteType) {
-        await supabase
-          .from('votes')
-          .delete()
-          .eq('link_id', linkId)
-          .eq('user_id', userId)
+        await supabase.from('votes').delete().eq('link_id', linkId).eq('user_id', userId)
       } else {
-        await supabase
-          .from('votes')
-          .update({ vote: voteType })
-          .eq('link_id', linkId)
-          .eq('user_id', userId)
+        await supabase.from('votes').update({ vote: voteType }).eq('link_id', linkId).eq('user_id', userId)
       }
     } else {
-      await supabase
-        .from('votes')
-        .insert({
-          link_id: linkId,
-          user_id: userId,
-          vote: voteType,
-        })
+      await supabase.from('votes').insert({ link_id: linkId, user_id: userId, vote: voteType })
     }
-
     router.refresh()
   }
 
   const handleConfirm = async (linkId: string) => {
     const link = trip.links.find(l => l.id === linkId)
-    await supabase
-      .from('links')
-      .update({ is_confirmed: !link?.is_confirmed })
-      .eq('id', linkId)
-    
+    await supabase.from('links').update({ is_confirmed: !link?.is_confirmed }).eq('id', linkId)
     router.refresh()
   }
 
   const handleDelete = async (linkId: string) => {
     if (!confirm('Remove this link from the trip?')) return
-    
-    await supabase
-      .from('links')
-      .delete()
-      .eq('id', linkId)
-    
+    await supabase.from('links').delete().eq('id', linkId)
+    setSelectedLink(null)
     router.refresh()
   }
 
-  const getCategoryEmoji = (category: string | null) => {
-    switch (category) {
-      case 'food': return '🍽️'
-      case 'hotel': return '🏨'
-      case 'activity': return '🎯'
-      default: return '🔗'
-    }
-  }
-
-  const getCategoryLabel = (category: string | null) => {
-    switch (category) {
-      case 'food': return 'Restaurant'
-      case 'hotel': return 'Hotel'
-      case 'activity': return 'Activity'
-      default: return 'Link'
-    }
+  const handleAddComment = async (linkId: string) => {
+    if (!newComment.trim()) return
+    await supabase.from('comments').insert({ link_id: linkId, user_id: userId, text: newComment })
+    setNewComment('')
+    router.refresh()
   }
 
   const getVoteCounts = (votes: { user_id: string; vote: string }[]) => {
     const up = votes.filter(v => v.vote === 'up').length
     const down = votes.filter(v => v.vote === 'down').length
-    return { up, down, total: up - down }
+    return { up, down }
   }
 
   const getUserVote = (votes: { user_id: string; vote: string }[]) => {
     return votes.find(v => v.user_id === userId)?.vote
   }
 
-  const renderStars = (rating: number) => {
-    const fullStars = Math.floor(rating)
-    const hasHalf = rating % 1 >= 0.5
-    const stars = []
-    for (let i = 0; i < fullStars; i++) stars.push('★')
-    if (hasHalf) stars.push('½')
-    return stars.join('')
-  }
+  // Filter links by category and search
+  const filteredLinks = trip.links.filter(link => {
+    const matchesCategory = activeCategory === 'all' || link.category === activeCategory
+    const matchesSearch = !searchQuery || 
+      link.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      link.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
 
-  const confirmedLinks = trip.links.filter(l => l.is_confirmed)
-  const topVoted = [...trip.links].sort((a, b) => {
-    const aScore = getVoteCounts(a.votes).total
-    const bScore = getVoteCounts(b.votes).total
-    return bScore - aScore
-  }).slice(0, 3)
+  const confirmedCount = trip.links.filter(l => l.is_confirmed).length
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="bg-[#F5F0E8] rounded-2xl p-5 mb-6">
-            <form onSubmit={handleAddLink} className="flex gap-3">
+    <div className="min-h-screen bg-white">
+      {/* Category Tabs */}
+      <div className="border-b bg-white sticky top-[73px] z-40">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition ${
+                    activeCategory === cat.id
+                      ? 'bg-[#FFF8E7] text-gray-800 border border-[#F0E6D0]'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Craft Button */}
+            {confirmedCount >= 2 && (
+              <button className="px-6 py-2.5 bg-[#8B9DC3] text-white rounded-full font-medium hover:bg-[#7A8BB0] transition">
+                Craft
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Search Bar */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="flex-1 relative">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" strokeWidth="2" />
+              <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search"
+              className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-full focus:outline-none focus:border-gray-400 transition"
+            />
+          </div>
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Add Link Form */}
+        <div className="mb-8">
+          <form onSubmit={handleAddLink} className="flex gap-3">
+            <div className="flex-1 relative">
               <input
                 type="url"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="Paste a link to a restaurant, hotel, or activity..."
-                className="flex-1 px-4 py-3 rounded-xl border-2 border-transparent focus:border-[#FF6B6B] focus:outline-none"
+                placeholder="Drop a link here..."
+                className="w-full px-6 py-3 bg-white border border-gray-200 rounded-full focus:outline-none focus:border-gray-400 transition"
               />
-              <button
-                type="submit"
-                disabled={adding || !linkUrl.trim()}
-                className="px-6 py-3 bg-[#FF6B6B] text-white rounded-full font-semibold hover:bg-[#ff5252] transition disabled:opacity-50 min-w-[100px]"
-              >
-                {unfurling ? '🔍 Fetching...' : adding ? 'Adding...' : 'Add →'}
-              </button>
-            </form>
-            <div className="flex gap-2 mt-3 text-sm text-gray-500">
-              <span className="bg-white px-3 py-1 rounded-lg">🍽️ Restaurants</span>
-              <span className="bg-white px-3 py-1 rounded-lg">🏨 Hotels</span>
-              <span className="bg-white px-3 py-1 rounded-lg">🎯 Activities</span>
             </div>
-          </div>
+            <button
+              type="submit"
+              disabled={adding || !linkUrl.trim()}
+              className="px-6 py-3 bg-[#FFF8E7] text-gray-800 rounded-full font-medium hover:bg-[#FFEFC7] transition border border-[#F0E6D0] disabled:opacity-50"
+            >
+              {unfurling ? 'Fetching...' : adding ? 'Adding...' : 'Add'}
+            </button>
+          </form>
+        </div>
 
-          {trip.links.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl">
-              <div className="text-5xl mb-4">📍</div>
-              <h3 className="text-xl font-serif mb-2">No links yet</h3>
-              <p className="text-gray-600">Paste a link above to start adding ideas!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {trip.links.map((link) => {
-                const { up, down, total } = getVoteCounts(link.votes)
-                const userVote = getUserVote(link.votes)
-
-                return (
-                  <div 
-                    key={link.id} 
-                    className={`bg-white border-2 rounded-2xl overflow-hidden transition-all ${
-                      link.is_confirmed 
-                        ? 'border-[#7CB69D] shadow-lg shadow-[#7CB69D]/20' 
-                        : 'border-gray-200 hover:border-gray-300'
+        {/* Main Content */}
+        {selectedLink ? (
+          /* Detail View with Comments */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left: Card Detail */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              {selectedLink.image_url && (
+                <div className="aspect-[4/3] bg-gray-100 relative">
+                  <img 
+                    src={selectedLink.image_url} 
+                    alt={selectedLink.title || ''} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-2">{selectedLink.title}</h2>
+                {selectedLink.price_range && (
+                  <p className="text-gray-600 mb-4">{selectedLink.price_range} for 3 nights</p>
+                )}
+                <div className="flex items-center gap-3">
+                  <a 
+                    href={selectedLink.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="px-6 py-2.5 bg-[#FFF8E7] text-gray-800 rounded-full font-medium hover:bg-[#FFEFC7] transition border border-[#F0E6D0]"
+                  >
+                    View
+                  </a>
+                  <button
+                    onClick={() => handleConfirm(selectedLink.id)}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
+                      selectedLink.is_confirmed
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-500'
                     }`}
                   >
-                    {link.image_url && (
-                      <div className="h-40 bg-gray-100 relative overflow-hidden">
+                    ✓
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSelectedLink(null)}
+                  className="mt-4 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  ← Back to all
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Notes & Comments */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">Notes & Comments</h3>
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <span>👍 {getVoteCounts(selectedLink.votes).up} Votes</span>
+                  <span>👎 {getVoteCounts(selectedLink.votes).down} Downvotes</span>
+                </div>
+              </div>
+
+              {/* Vote Buttons */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => handleVote(selectedLink.id, 'up')}
+                  className={`flex-1 py-2 rounded-full text-sm font-medium transition ${
+                    getUserVote(selectedLink.votes) === 'up'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                  }`}
+                >
+                  👍 Upvote
+                </button>
+                <button
+                  onClick={() => handleVote(selectedLink.id, 'down')}
+                  className={`flex-1 py-2 rounded-full text-sm font-medium transition ${
+                    getUserVote(selectedLink.votes) === 'down'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  }`}
+                >
+                  👎 Downvote
+                </button>
+              </div>
+
+              {/* Comments */}
+              <div className="space-y-4 mb-6">
+                {selectedLink.comments.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-4">No comments yet</p>
+                ) : (
+                  selectedLink.comments.map((comment) => (
+                    <div key={comment.id} className="bg-[#FFF8E7] rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-[#E8B4B8] flex items-center justify-center text-white text-sm font-medium">
+                          {comment.user_id.slice(0, 1).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-sm">User</span>
+                      </div>
+                      <p className="text-gray-700 text-sm">{comment.text}</p>
+                      <div className="flex items-center gap-1 mt-2 text-gray-400 text-xs">
+                        <span>♡</span>
+                        <span>0</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add Comment */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment(selectedLink.id)}
+                  placeholder="Add Note..."
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 transition"
+                />
+              </div>
+
+              {/* Delete */}
+              <button
+                onClick={() => handleDelete(selectedLink.id)}
+                className="mt-4 text-sm text-red-500 hover:text-red-700"
+              >
+                Remove from trip
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Grid View */
+          <>
+            {filteredLinks.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">📍</div>
+                <h3 className="text-xl font-serif mb-2">No items yet</h3>
+                <p className="text-gray-500">Drop a link above to add your first spot!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredLinks.map((link) => (
+                  <div 
+                    key={link.id} 
+                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition cursor-pointer group"
+                    onClick={() => setSelectedLink(link)}
+                  >
+                    {/* Image */}
+                    <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                      {link.image_url ? (
                         <img 
                           src={link.image_url} 
-                          alt={link.title || 'Link preview'}
-                          className="w-full h-full object-cover"
+                          alt={link.title || ''} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none'
                           }}
                         />
-                        {link.is_confirmed && (
-                          <div className="absolute top-3 right-3 bg-[#7CB69D] text-white px-3 py-1 rounded-full text-sm font-semibold">
-                            ✓ Confirmed
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleDelete(link.id)}
-                          className="absolute top-3 left-3 bg-black/50 hover:bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center transition"
-                          title="Remove"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl bg-[#FFF8E7]">
+                          {link.category === 'hotel' ? '🏨' : link.category === 'food' ? '🍽️' : link.category === 'activity' ? '🎯' : '🔗'}
+                        </div>
+                      )}
+                      {link.is_confirmed && (
+                        <div className="absolute top-3 right-3 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white">
+                          ✓
+                        </div>
+                      )}
+                    </div>
                     
-                    <div className="p-5">
-                      <div className="flex gap-4">
-                        {!link.image_url && (
-                          <div className="relative">
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${
-                              link.is_confirmed ? 'bg-[#E8F5EE]' : 'bg-[#F5F0E8]'
-                            }`}>
-                              {getCategoryEmoji(link.category)}
-                            </div>
-                            <button
-                              onClick={() => handleDelete(link.id)}
-                              className="absolute -top-2 -left-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 w-6 h-6 rounded-full flex items-center justify-center text-xs transition"
-                              title="Remove"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              link.category === 'hotel' ? 'bg-blue-100 text-blue-700' :
-                              link.category === 'food' ? 'bg-orange-100 text-orange-700' :
-                              link.category === 'activity' ? 'bg-purple-100 text-purple-700' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {getCategoryEmoji(link.category)} {getCategoryLabel(link.category)}
-                            </span>
-                            {link.rating && (
-                              <span className="text-xs text-yellow-600 font-medium">
-                                {renderStars(link.rating)} {link.rating.toFixed(1)}
-                                {link.review_count && ` (${link.review_count.toLocaleString()})`}
-                              </span>
-                            )}
-                            {link.price_range && (
-                              <span className="text-xs text-green-600 font-medium">
-                                {link.price_range}
-                              </span>
-                            )}
-                            {total > 0 && (
-                              <span className="text-xs text-[#7CB69D] font-medium">+{total} votes</span>
-                            )}
-                          </div>
-                          
-                          <h3 className="font-semibold text-lg leading-tight mb-1">
-                            {link.title || 'Untitled'}
-                          </h3>
-                          
-                          {link.description && (
-                            <p className="text-gray-600 text-sm line-clamp-2 mb-2">{link.description}</p>
-                          )}
-                          
-                          <a 
-                            href={link.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-[#FF6B6B] text-sm hover:underline inline-flex items-center gap-1"
-                          >
-                            {new URL(link.url).hostname.replace('www.', '')} ↗
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleVote(link.id, 'up')}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                              userVote === 'up'
-                                ? 'bg-[#7CB69D] text-white'
-                                : 'bg-[#E8F5EE] text-[#7CB69D] hover:bg-[#7CB69D] hover:text-white'
-                            }`}
-                          >
-                            👍 {up}
-                          </button>
-                          <button
-                            onClick={() => handleVote(link.id, 'down')}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                              userVote === 'down'
-                                ? 'bg-[#FF6B6B] text-white'
-                                : 'bg-[#FFE5E5] text-[#FF6B6B] hover:bg-[#FF6B6B] hover:text-white'
-                            }`}
-                          >
-                            👎 {down}
-                          </button>
-                        </div>
-                        
-                        <button
-                          onClick={() => handleConfirm(link.id)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                            link.is_confirmed
-                              ? 'bg-[#7CB69D] text-white'
-                              : 'border-2 border-[#7CB69D] text-[#7CB69D] hover:bg-[#7CB69D] hover:text-white'
-                          }`}
-                        >
-                          {link.is_confirmed ? '✓ Confirmed' : 'Confirm'}
-                        </button>
+                    {/* Info */}
+                    <div className="p-4">
+                      <h3 className="font-medium text-center mb-1 line-clamp-2">{link.title || 'Untitled'}</h3>
+                      {link.price_range && (
+                        <p className="text-gray-500 text-sm text-center">{link.price_range} for 3 nights</p>
+                      )}
+                      {link.rating && (
+                        <p className="text-yellow-600 text-sm text-center mt-1">
+                          {'★'.repeat(Math.floor(link.rating))} {link.rating.toFixed(1)}
+                        </p>
+                      )}
+                      
+                      {/* View Button */}
+                      <div className="mt-4 flex justify-center">
+                        <span className="px-6 py-2 bg-[#FFF8E7] text-gray-800 rounded-full text-sm font-medium border border-[#F0E6D0]">
+                          View
+                        </span>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <h3 className="font-semibold mb-4">📊 Trip Progress</h3>
-            <div className="text-center mb-4">
-              <div className="text-4xl font-bold text-[#7CB69D]">
-                {confirmedLinks.length}/{trip.links.length}
-              </div>
-              <div className="text-sm text-gray-500">Items Confirmed</div>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div 
-                className="bg-[#7CB69D] h-2 rounded-full transition-all"
-                style={{ width: trip.links.length > 0 ? `${(confirmedLinks.length / trip.links.length) * 100}%` : '0%' }}
-              />
-            </div>
-            {confirmedLinks.length > 0 && confirmedLinks.length === trip.links.length && (
-              <div className="mt-4 p-3 bg-[#E8F5EE] rounded-xl text-center">
-                <div className="text-lg mb-1">🎉</div>
-                <div className="text-sm font-medium text-[#7CB69D]">All items confirmed!</div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <h3 className="font-semibold mb-4">📈 Summary</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-orange-50 p-4 rounded-xl text-center">
-                <div className="text-2xl mb-1">🍽️</div>
-                <div className="text-xl font-bold text-orange-600">
-                  {trip.links.filter(l => l.category === 'food').length}
-                </div>
-                <div className="text-xs text-gray-500">Restaurants</div>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-xl text-center">
-                <div className="text-2xl mb-1">🏨</div>
-                <div className="text-xl font-bold text-blue-600">
-                  {trip.links.filter(l => l.category === 'hotel').length}
-                </div>
-                <div className="text-xs text-gray-500">Hotels</div>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-xl text-center">
-                <div className="text-2xl mb-1">🎯</div>
-                <div className="text-xl font-bold text-purple-600">
-                  {trip.links.filter(l => l.category === 'activity').length}
-                </div>
-                <div className="text-xs text-gray-500">Activities</div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-xl text-center">
-                <div className="text-2xl mb-1">🔗</div>
-                <div className="text-xl font-bold text-gray-600">
-                  {trip.links.filter(l => !l.category || l.category === 'other').length}
-                </div>
-                <div className="text-xs text-gray-500">Other</div>
-              </div>
-            </div>
-          </div>
-
-          {topVoted.length > 0 && topVoted.some(l => getVoteCounts(l.votes).total > 0) && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
-              <h3 className="font-semibold mb-4">🔥 Top Voted</h3>
-              <div className="space-y-3">
-                {topVoted.filter(l => getVoteCounts(l.votes).total > 0).map((link, i) => (
-                  <div key={link.id} className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                      i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      i === 1 ? 'bg-gray-100 text-gray-600' :
-                      'bg-orange-50 text-orange-600'
-                    }`}>
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{link.title}</div>
-                      <div className="text-xs text-gray-500">+{getVoteCounts(link.votes).total} votes</div>
-                    </div>
-                    <span className="text-lg">{getCategoryEmoji(link.category)}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {confirmedLinks.length >= 2 && (
-            <div className="bg-gradient-to-br from-[#FF6B6B] to-[#ff8f8f] rounded-2xl p-5 text-white">
-              <h3 className="font-semibold mb-2">✨ Ready to plan?</h3>
-              <p className="text-sm opacity-90 mb-4">
-                You have {confirmedLinks.length} confirmed items. Generate a day-by-day itinerary!
-              </p>
-              <button className="w-full bg-white text-[#FF6B6B] py-3 rounded-full font-semibold hover:bg-gray-100 transition">
-                Generate Itinerary →
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
