@@ -75,6 +75,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
   const [viewMode, setViewMode] = useState<ViewMode>('browse')
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [generatingItinerary, setGeneratingItinerary] = useState(false)
+  const [weather, setWeather] = useState<{ temp_f: number; condition: string; icon: string } | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -174,16 +175,25 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
   const handleGenerateItinerary = async () => {
     setGeneratingItinerary(true)
     try {
-      const response = await fetch('/api/generate-itinerary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId: trip.id }),
-      })
+      // Fetch itinerary and weather in parallel
+      const [itineraryResponse, weatherResponse] = await Promise.all([
+        fetch('/api/generate-itinerary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tripId: trip.id }),
+        }),
+        fetch(`/api/weather?location=${encodeURIComponent(trip.destination || 'New York')}`),
+      ])
       
-      if (response.ok) {
-        const data = await response.json()
+      if (itineraryResponse.ok) {
+        const data = await itineraryResponse.json()
         setItinerary(data)
         setViewMode('itinerary')
+      }
+      
+      if (weatherResponse.ok) {
+        const weatherData = await weatherResponse.json()
+        setWeather(weatherData)
       }
     } catch (err) {
       console.error('Failed to generate itinerary:', err)
@@ -273,11 +283,20 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                 <h2 className="text-2xl font-serif mb-2">Trip Itinerary</h2>
                 <p className="text-gray-600">{itinerary.summary}</p>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-[#7CB69D]">
-                  ${itinerary.totalCost.toLocaleString()}
+              <div className="flex items-center gap-6">
+                {weather && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span className="text-2xl">{weather.icon}</span>
+                    <span className="font-medium">{weather.temp_f}°F</span>
+                    <span className="text-sm text-gray-400">in {trip.destination}</span>
+                  </div>
+                )}
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-[#7CB69D]">
+                    ${itinerary.totalCost.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">Estimated total</div>
                 </div>
-                <div className="text-sm text-gray-500">Estimated total</div>
               </div>
             </div>
 
