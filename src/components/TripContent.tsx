@@ -78,6 +78,8 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
   const [newComment, setNewComment] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('browse')
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
+  // Local state for optimistic updates
+  const [links, setLinks] = useState<Link[]>(trip.links)
   const [generatingItinerary, setGeneratingItinerary] = useState(false)
   const [weather, setWeather] = useState<{ temp_f: number; condition: string; icon: string } | null>(null)
   const router = useRouter()
@@ -119,7 +121,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
       
       setUnfurling(false)
 
-      const { error } = await supabase
+      const { data: newLink, error } = await supabase
         .from('links')
         .insert({
           trip_id: trip.id,
@@ -139,10 +141,18 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           ai_summary: metadata.ai_summary,
           added_by: userId,
         })
+        .select()
+        .single()
 
-      if (!error) {
+      if (!error && newLink) {
+        // Add to local state with empty votes/comments for optimistic update
+        const linkWithRelations: Link = {
+          ...newLink,
+          votes: [],
+          comments: [],
+        }
+        setLinks(prev => [...prev, linkWithRelations])
         setLinkUrl('')
-        router.refresh()
       }
     } catch (err) {
       console.error('Failed to add link:', err)
@@ -169,16 +179,47 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
   }
 
   const handleConfirm = async (linkId: string) => {
-    const link = trip.links.find(l => l.id === linkId)
-    await supabase.from('links').update({ is_confirmed: !link?.is_confirmed }).eq('id', linkId)
-    router.refresh()
+    const link = links.find(l => l.id === linkId)
+    if (!link) return
+    
+    // Optimistic update - instant UI feedback
+    const newConfirmedState = !link.is_confirmed
+    setLinks(prev => prev.map(l => 
+      l.id === linkId ? { ...l, is_confirmed: newConfirmedState } : l
+    ))
+    // Update selectedLink if it's the same one
+    if (selectedLink?.id === linkId) {
+      setSelectedLink(prev => prev ? { ...prev, is_confirmed: newConfirmedState } : null)
+    }
+    
+    // Sync with server in background
+    supabase.from('links').update({ is_confirmed: newConfirmedState }).eq('id', linkId)
+      .then(({ error }) => {
+        if (error) {
+          // Revert on error
+          setLinks(prev => prev.map(l => 
+            l.id === linkId ? { ...l, is_confirmed: !newConfirmedState } : l
+          ))
+        }
+      })
   }
 
   const handleDelete = async (linkId: string) => {
-    if (!confirm('Remove this link from the trip?')) return
-    await supabase.from('links').delete().eq('id', linkId)
-    setSelectedLink(null)
-    router.refresh()
+    // Optimistic update - remove from UI instantly
+    const deletedLink = links.find(l => l.id === linkId)
+    setLinks(prev => prev.filter(l => l.id !== linkId))
+    if (selectedLink?.id === linkId) {
+      setSelectedLink(null)
+    }
+    
+    // Sync with server in background
+    supabase.from('links').delete().eq('id', linkId)
+      .then(({ error }) => {
+        if (error && deletedLink) {
+          // Revert on error
+          setLinks(prev => [...prev, deletedLink])
+        }
+      })
   }
 
   const handleAddComment = async (linkId: string) => {
@@ -238,8 +279,8 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
     return '📍'
   }
 
-  // Filter links by category and search
-  const filteredLinks = trip.links.filter(link => {
+  // Filter links by category and search (using local state for optimistic updates)
+  const filteredLinks = links.filter(link => {
     const matchesCategory = activeCategory === 'all' || link.category === activeCategory
     const matchesSearch = !searchQuery || 
       link.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -247,7 +288,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
     return matchesCategory && matchesSearch
   })
 
-  const confirmedCount = trip.links.filter(l => l.is_confirmed).length
+  const confirmedCount = links.filter(l => l.is_confirmed).length
 
   return (
     <div className="min-h-screen bg-white">
@@ -679,6 +720,18 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                         ✓ CONFIRMED
                       </div>
                     )}
+                    
+                    {/* Delete Button - visible on hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(link.id)
+                      }}
+                      className={`absolute ${link.is_confirmed ? 'top-8' : 'top-2'} right-2 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center text-sm font-bold`}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
                     
                     {/* Image - Clickable to open details */}
                     <div 
