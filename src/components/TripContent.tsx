@@ -58,6 +58,7 @@ type ViewMode = 'browse' | 'itinerary'
 type Category = 'all' | 'hotel' | 'food' | 'activity' | 'other'
 
 const CATEGORIES = [
+  { id: 'all' as Category, label: 'All', emoji: '📍' },
   { id: 'hotel' as Category, label: 'Hotels', emoji: '🏨' },
   { id: 'food' as Category, label: 'Meals', emoji: '🍽️' },
   { id: 'activity' as Category, label: 'Activities', emoji: '🎯' },
