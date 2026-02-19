@@ -161,6 +161,65 @@ function isFineDining(title: string, description?: string): boolean {
   return fineDiningIndicators.some(indicator => text.includes(indicator))
 }
 
+// Detect hotel tier based on brand name
+function getHotelTier(title: string): { tier: string; estimate: number } {
+  const name = title.toLowerCase()
+  
+  // Luxury ($800-1200/night in NYC)
+  const luxuryBrands = [
+    'four seasons', 'fourseasons', 'ritz carlton', 'ritz-carlton', 'st. regis', 'st regis',
+    'mandarin oriental', 'peninsula', 'waldorf astoria', 'waldorf', 'aman', 'rosewood',
+    'park hyatt', 'baccarat', 'the mark', 'the carlyle', 'carlyle', 'the plaza', 'plaza hotel',
+    'the pierre', 'pierre hotel', 'the langham', 'langham', 'the greenwich', 'equinox hotel',
+    'one hotel', 'edition', 'the edition', 'nomad hotel', 'gramercy park hotel'
+  ]
+  if (luxuryBrands.some(brand => name.includes(brand))) {
+    return { tier: 'luxury', estimate: 950 }
+  }
+  
+  // Upscale ($400-600/night in NYC)
+  const upscaleBrands = [
+    'marriott', 'hilton', 'hyatt', 'westin', 'sheraton', 'w hotel', 'w new york',
+    'conrad', 'intercontinental', 'kimpton', 'thompson', 'dream hotel', 'sixty hotels',
+    'soho grand', 'tribeca grand', 'the standard', 'standard hotel', 'ace hotel',
+    'the dominick', 'dominick', 'lotte', 'jw marriott', 'the whitby', 'the william',
+    'the beekman', 'refinery hotel', 'gansevoort', 'the james', 'viceroy'
+  ]
+  if (upscaleBrands.some(brand => name.includes(brand))) {
+    return { tier: 'upscale', estimate: 450 }
+  }
+  
+  // Mid-range ($200-350/night in NYC)
+  const midrangeBrands = [
+    'holiday inn', 'courtyard', 'residence inn', 'hampton inn', 'hampton', 'doubletree',
+    'crowne plaza', 'radisson', 'wyndham', 'best western', 'hyatt place', 'hyatt house',
+    'even hotel', 'cambria', 'hotel indigo', 'aloft', 'element', 'fairfield',
+    'springhill', 'towneplace', 'homewood suites', 'embassy suites'
+  ]
+  if (midrangeBrands.some(brand => name.includes(brand))) {
+    return { tier: 'midrange', estimate: 275 }
+  }
+  
+  // Budget ($120-200/night in NYC)
+  const budgetBrands = [
+    'pod', 'moxy', 'citizenm', 'citizen m', 'yotel', 'freehand', 'hi hostel',
+    'hostelling', 'la quinta', 'red roof', 'motel 6', 'super 8', 'days inn',
+    'microtel', 'travelodge', 'howard johnson', 'econo lodge', 'sleep inn',
+    'arlo', 'made hotel', 'the jane'
+  ]
+  if (budgetBrands.some(brand => name.includes(brand))) {
+    return { tier: 'budget', estimate: 175 }
+  }
+  
+  // Airbnb / vacation rental indicators
+  if (name.includes('airbnb') || name.includes('vrbo') || name.includes('apartment') || name.includes('loft')) {
+    return { tier: 'rental', estimate: 250 }
+  }
+  
+  // Default: assume mid-upscale for unknown NYC hotels
+  return { tier: 'unknown', estimate: 350 }
+}
+
 // Get fallback estimate based on category and signals
 function getFallbackEstimate(
   category: string,
@@ -184,6 +243,17 @@ function getFallbackEstimate(
     }
   }
   
+  // Hotel tier detection
+  if (category === 'hotel') {
+    const { tier, estimate } = getHotelTier(title)
+    return {
+      estimatedCost: estimate,
+      confidence: tier === 'unknown' ? 'low' : 'medium',
+      source: `hotel_tier_${tier}`,
+      explanation: `${tier.charAt(0).toUpperCase() + tier.slice(1)} hotel - estimated $${estimate}/night`
+    }
+  }
+  
   // Fine dining detection
   if (category === 'food' && isFineDining(title)) {
     return {
@@ -196,12 +266,6 @@ function getFallbackEstimate(
   
   // Category-based defaults
   const defaults: Record<string, PriceEstimate> = {
-    hotel: {
-      estimatedCost: 250,
-      confidence: 'low',
-      source: 'category_default',
-      explanation: 'Default hotel estimate - suggest adding actual rate'
-    },
     food: {
       estimatedCost: 50,
       confidence: 'low', 

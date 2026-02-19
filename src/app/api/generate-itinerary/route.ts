@@ -31,6 +31,52 @@ interface DayPlan {
   items: ItineraryItem[]
 }
 
+// Detect hotel tier and return nightly rate estimate
+function getHotelNightlyRate(title: string): number {
+  const name = title.toLowerCase()
+  
+  // Luxury ($800-1200/night in NYC)
+  const luxuryBrands = [
+    'four seasons', 'fourseasons', 'ritz carlton', 'ritz-carlton', 'st. regis', 'st regis',
+    'mandarin oriental', 'peninsula', 'waldorf astoria', 'waldorf', 'aman', 'rosewood',
+    'park hyatt', 'baccarat', 'the mark', 'the carlyle', 'carlyle', 'the plaza', 'plaza hotel',
+    'the pierre', 'pierre hotel', 'the langham', 'langham', 'the greenwich', 'equinox hotel',
+    'one hotel', 'edition', 'the edition', 'nomad hotel', 'gramercy park hotel'
+  ]
+  if (luxuryBrands.some(brand => name.includes(brand))) return 950
+  
+  // Upscale ($400-600/night in NYC)
+  const upscaleBrands = [
+    'marriott', 'hilton', 'hyatt', 'westin', 'sheraton', 'w hotel', 'w new york',
+    'conrad', 'intercontinental', 'kimpton', 'thompson', 'dream hotel', 'sixty hotels',
+    'soho grand', 'tribeca grand', 'the standard', 'standard hotel', 'ace hotel',
+    'the dominick', 'dominick', 'lotte', 'jw marriott', 'the whitby', 'the william',
+    'the beekman', 'refinery hotel', 'gansevoort', 'the james', 'viceroy'
+  ]
+  if (upscaleBrands.some(brand => name.includes(brand))) return 450
+  
+  // Mid-range ($200-350/night in NYC)
+  const midrangeBrands = [
+    'holiday inn', 'courtyard', 'residence inn', 'hampton inn', 'hampton', 'doubletree',
+    'crowne plaza', 'radisson', 'wyndham', 'best western', 'hyatt place', 'hyatt house',
+    'even hotel', 'cambria', 'hotel indigo', 'aloft', 'element', 'fairfield',
+    'springhill', 'towneplace', 'homewood suites', 'embassy suites'
+  ]
+  if (midrangeBrands.some(brand => name.includes(brand))) return 275
+  
+  // Budget ($120-200/night in NYC)
+  const budgetBrands = [
+    'pod', 'moxy', 'citizenm', 'citizen m', 'yotel', 'freehand', 'hi hostel',
+    'hostelling', 'la quinta', 'red roof', 'motel 6', 'super 8', 'days inn',
+    'microtel', 'travelodge', 'howard johnson', 'econo lodge', 'sleep inn',
+    'arlo', 'made hotel', 'the jane'
+  ]
+  if (budgetBrands.some(brand => name.includes(brand))) return 175
+  
+  // Default: assume mid-upscale for unknown NYC hotels
+  return 350
+}
+
 // Detect if a restaurant is fine dining (dinner-only)
 function isFineDining(title: string, description?: string | null, priceRange?: string | null): boolean {
   const text = `${title} ${description || ''}`.toLowerCase()
@@ -159,7 +205,7 @@ async function estimateCost(
   }
   
   // Fallbacks by category
-  if (link.category === 'hotel') return 350 // NYC hotel average
+  if (link.category === 'hotel') return getHotelNightlyRate(link.title || '')
   if (link.category === 'food') return isFineDining(link.title || '', link.description, link.price_range) ? 175 : 55
   if (link.category === 'activity') return 40
   return 30
