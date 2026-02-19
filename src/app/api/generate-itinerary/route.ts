@@ -10,6 +10,11 @@ interface Link {
   price_range: string | null
   rating: number | null
   is_confirmed: boolean
+  // Enrichment fields from web search
+  venue_type: string | null
+  meal_times: string[] | null
+  estimated_price_per_person: number | null
+  cuisine_type: string | null
 }
 
 interface ItineraryItem {
@@ -171,7 +176,12 @@ async function estimateCost(
   location: string,
   baseUrl: string
 ): Promise<number> {
-  // If we have a $ price range, use smart mapping
+  // FIRST: Use enriched data if available (from web search during unfurl)
+  if (link.estimated_price_per_person) {
+    return link.estimated_price_per_person
+  }
+  
+  // SECOND: Use $ price range if available
   if (link.price_range) {
     const dollarCount = (link.price_range.match(/\$/g) || []).length
     
@@ -182,7 +192,21 @@ async function estimateCost(
     }
   }
   
-  // For items without price range, try the estimate API
+  // THIRD: Use venue_type for estimation
+  if (link.venue_type) {
+    const venueTypePrices: Record<string, number> = {
+      fine_dining: 175,
+      casual: 45,
+      fast_casual: 18,
+      cafe: 15,
+      bar: 40,
+    }
+    if (venueTypePrices[link.venue_type]) {
+      return venueTypePrices[link.venue_type]
+    }
+  }
+  
+  // FOURTH: Try the estimate API as fallback
   try {
     const response = await fetch(`${baseUrl}/api/estimate-price`, {
       method: 'POST',
@@ -222,11 +246,40 @@ function getBestMealSlot(
   const description = link.description || ''
   const priceRange = link.price_range
   
+  // FIRST PRIORITY: Use enriched meal_times data from web search
+  if (link.meal_times && link.meal_times.length > 0) {
+    // Try to find an available slot that matches the restaurant's meal times
+    for (const mealTime of link.meal_times) {
+      const slotName = mealTime === 'brunch' ? 'breakfast' : mealTime as 'breakfast' | 'lunch' | 'dinner'
+      const matchingSlot = availableSlots.find(s => s.slot === slotName)
+      if (matchingSlot) return matchingSlot
+    }
+  }
+  
+  // SECOND PRIORITY: Use venue_type from enrichment
+  if (link.venue_type) {
+    if (link.venue_type === 'fine_dining') {
+      const dinnerSlot = availableSlots.find(s => s.slot === 'dinner')
+      if (dinnerSlot) return dinnerSlot
+    } else if (link.venue_type === 'cafe') {
+      const breakfastSlot = availableSlots.find(s => s.slot === 'breakfast')
+      if (breakfastSlot) return breakfastSlot
+      const lunchSlot = availableSlots.find(s => s.slot === 'lunch')
+      if (lunchSlot) return lunchSlot
+    } else if (link.venue_type === 'fast_casual') {
+      const lunchSlot = availableSlots.find(s => s.slot === 'lunch')
+      if (lunchSlot) return lunchSlot
+    } else if (link.venue_type === 'bar') {
+      const dinnerSlot = availableSlots.find(s => s.slot === 'dinner')
+      if (dinnerSlot) return dinnerSlot
+    }
+  }
+  
+  // FALLBACK: Use keyword-based heuristics
   // Fine dining → prefer dinner
   if (isFineDining(title, description, priceRange)) {
     const dinnerSlot = availableSlots.find(s => s.slot === 'dinner')
     if (dinnerSlot) return dinnerSlot
-    // Fine dining at lunch is unusual but possible
     const lunchSlot = availableSlots.find(s => s.slot === 'lunch')
     if (lunchSlot) return lunchSlot
   }

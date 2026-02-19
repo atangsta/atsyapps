@@ -10,6 +10,18 @@ interface UnfurlResult {
   review_count: number | null
   price_range: string | null
   rating_source: string | null
+  // New enrichment fields
+  venue_type: string | null
+  meal_times: string[] | null
+  estimated_price_per_person: number | null
+  cuisine_type: string | null
+}
+
+interface EnrichmentData {
+  venue_type: string | null
+  meal_times: string[]
+  estimated_price_per_person: number | null
+  cuisine_type: string | null
 }
 
 function detectCategory(url: string, title?: string): 'hotel' | 'food' | 'activity' | 'other' {
@@ -79,7 +91,6 @@ function extractJsonLdRatings(html: string): { rating: number | null; review_cou
 function extractYelpData(html: string): { rating: number | null; review_count: number | null; price_range: string | null } {
   let { rating, review_count, price_range } = extractJsonLdRatings(html)
 
-  // Try aria-label for rating
   if (!rating) {
     const ratingMatch = html.match(/aria-label="(\d+\.?\d*)\s*star\s*rating"/i)
     if (ratingMatch) {
@@ -87,7 +98,6 @@ function extractYelpData(html: string): { rating: number | null; review_count: n
     }
   }
 
-  // Fallback review count
   if (!review_count) {
     const reviewMatch = html.match(/\(?([\d,]+)\s*reviews?\)?/i)
     if (reviewMatch) {
@@ -95,7 +105,6 @@ function extractYelpData(html: string): { rating: number | null; review_count: n
     }
   }
 
-  // Fallback price range
   if (!price_range) {
     const priceMatch = html.match(/aria-label="[^"]*(\${1,4})[^"]*"/i) || html.match(/>(\${1,4})</i)
     if (priceMatch) {
@@ -131,26 +140,21 @@ async function searchYelp(businessName: string, location: string = 'New York'): 
     
     const html = await response.text()
     
-    // Extract first result's rating from search page
-    // Look for rating in the search results
     const ratingMatch = html.match(/aria-label="(\d+\.?\d*)\s*star rating"/i)
     if (ratingMatch) {
       result.rating = parseFloat(ratingMatch[1])
     }
     
-    // Look for review count
     const reviewMatch = html.match(/([\d,]+)\s*reviews?/i)
     if (reviewMatch) {
       result.review_count = parseInt(reviewMatch[1].replace(/,/g, ''), 10)
     }
     
-    // Look for price range
     const priceMatch = html.match(/>(\${1,4})</i)
     if (priceMatch) {
       result.price_range = priceMatch[1]
     }
     
-    // Look for image
     const imgMatch = html.match(/src="(https:\/\/s3-media\d?\.fl\.yelpcdn\.com\/bphoto\/[^"]+)"/i)
     if (imgMatch) {
       result.image_url = imgMatch[1]
@@ -161,15 +165,26 @@ async function searchYelp(businessName: string, location: string = 'New York'): 
   return result
 }
 
-// Search TripAdvisor via DuckDuckGo
-async function searchTripAdvisor(businessName: string, location: string = 'New York'): Promise<{
-  rating: number | null
-  review_count: number | null
-}> {
-  const result = { rating: null as number | null, review_count: null as number | null }
+// Search web and enrich venue data
+async function enrichVenueData(
+  businessName: string, 
+  location: string = 'New York',
+  category: string
+): Promise<EnrichmentData> {
+  const result: EnrichmentData = {
+    venue_type: null,
+    meal_times: [],
+    estimated_price_per_person: null,
+    cuisine_type: null,
+  }
+  
+  if (category !== 'food') {
+    return result
+  }
   
   try {
-    const searchQuery = encodeURIComponent(`${businessName} ${location} site:tripadvisor.com`)
+    // Search for restaurant info
+    const searchQuery = encodeURIComponent(`"${businessName}" ${location} restaurant type cuisine dinner lunch price`)
     const response = await fetch(`https://html.duckduckgo.com/html/?q=${searchQuery}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
     })
@@ -177,60 +192,109 @@ async function searchTripAdvisor(businessName: string, location: string = 'New Y
     if (!response.ok) return result
     
     const html = await response.text()
+    const cleanText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').toLowerCase()
     
-    // Look for rating patterns in snippets
-    const ratingMatch = html.match(/(\d+\.?\d*)\s*of\s*5\s*bubbles?/i) || 
-                        html.match(/rating[:\s]+(\d+\.?\d*)/i) ||
-                        html.match(/(\d+\.?\d*)\s*(?:stars?|out of 5)/i)
-    if (ratingMatch) {
-      const r = parseFloat(ratingMatch[1])
-      if (r >= 1 && r <= 5) result.rating = r
+    // Detect venue type
+    if (/michelin|fine dining|tasting menu|prix fixe|upscale|white tablecloth|elegant/i.test(cleanText)) {
+      result.venue_type = 'fine_dining'
+    } else if (/fast casual|counter service|quick service|grab and go/i.test(cleanText)) {
+      result.venue_type = 'fast_casual'
+    } else if (/cafe|café|coffee shop|coffeehouse|bakery/i.test(cleanText)) {
+      result.venue_type = 'cafe'
+    } else if (/bar|cocktail|pub|tavern|lounge/i.test(cleanText)) {
+      result.venue_type = 'bar'
+    } else if (/casual|family|neighborhood|everyday|relaxed/i.test(cleanText)) {
+      result.venue_type = 'casual'
     }
     
-    // Look for review count
-    const reviewMatch = html.match(/([\d,]+)\s*reviews?/i)
-    if (reviewMatch) {
-      result.review_count = parseInt(reviewMatch[1].replace(/,/g, ''), 10)
+    // Detect meal times
+    const mealTimes: string[] = []
+    if (/breakfast|morning|brunch|opens? (at )?(6|7|8|9)/i.test(cleanText)) {
+      mealTimes.push('breakfast')
+    }
+    if (/brunch|weekend breakfast|sunday/i.test(cleanText)) {
+      if (!mealTimes.includes('breakfast')) mealTimes.push('breakfast')
+    }
+    if (/lunch|midday|noon|11|12/i.test(cleanText)) {
+      mealTimes.push('lunch')
+    }
+    if (/dinner|evening|night|supper/i.test(cleanText)) {
+      mealTimes.push('dinner')
     }
     
-  } catch { /* ignore */ }
-  
-  return result
-}
-
-// Search Google Maps via DuckDuckGo
-async function searchGoogleMaps(businessName: string, location: string = 'New York'): Promise<{
-  rating: number | null
-  review_count: number | null
-}> {
-  const result = { rating: null as number | null, review_count: null as number | null }
-  
-  try {
-    const searchQuery = encodeURIComponent(`${businessName} ${location} reviews rating`)
-    const response = await fetch(`https://html.duckduckgo.com/html/?q=${searchQuery}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    })
-    
-    if (!response.ok) return result
-    
-    const html = await response.text()
-    
-    // Look for Google-style ratings "4.5 (1,234)"
-    const ratingMatch = html.match(/(\d+\.?\d*)\s*\([\d,]+\s*reviews?\)/i) ||
-                        html.match(/(\d+\.?\d*)\s*stars?/i) ||
-                        html.match(/rated\s*(\d+\.?\d*)/i)
-    if (ratingMatch) {
-      const r = parseFloat(ratingMatch[1])
-      if (r >= 1 && r <= 5) result.rating = r
+    // If fine dining or $$$+, likely dinner-only
+    if (result.venue_type === 'fine_dining' && mealTimes.length === 0) {
+      mealTimes.push('dinner')
     }
     
-    // Look for review count
-    const reviewMatch = html.match(/\(([\d,]+)\s*reviews?\)/i) || html.match(/([\d,]+)\s*reviews?/i)
-    if (reviewMatch) {
-      result.review_count = parseInt(reviewMatch[1].replace(/,/g, ''), 10)
+    // Default to lunch & dinner if nothing detected
+    if (mealTimes.length === 0) {
+      mealTimes.push('lunch', 'dinner')
     }
     
-  } catch { /* ignore */ }
+    result.meal_times = mealTimes
+    
+    // Detect cuisine type
+    const cuisinePatterns: [RegExp, string][] = [
+      [/korean|bulgogi|bibimbap|kimchi|korean bbq|kbbq/i, 'Korean'],
+      [/japanese|sushi|ramen|izakaya|omakase|kaiseki/i, 'Japanese'],
+      [/italian|pasta|pizza|trattoria|risotto/i, 'Italian'],
+      [/chinese|dim sum|szechuan|cantonese|dumpling/i, 'Chinese'],
+      [/mexican|tacos|burrito|taqueria/i, 'Mexican'],
+      [/thai|pad thai|curry|bangkok/i, 'Thai'],
+      [/indian|curry|tandoori|masala/i, 'Indian'],
+      [/french|bistro|brasserie|parisian/i, 'French'],
+      [/american|burger|steakhouse|bbq|barbecue/i, 'American'],
+      [/mediterranean|greek|hummus|falafel/i, 'Mediterranean'],
+      [/vietnamese|pho|banh mi/i, 'Vietnamese'],
+      [/spanish|tapas|paella/i, 'Spanish'],
+    ]
+    
+    for (const [pattern, cuisine] of cuisinePatterns) {
+      if (pattern.test(cleanText)) {
+        result.cuisine_type = cuisine
+        break
+      }
+    }
+    
+    // Extract price per person
+    const pricePatterns = [
+      /\$(\d{2,3})\s*(per person|pp|\/person|a head|each)/i,
+      /(\d{2,3})\s*dollars?\s*(per person|each)/i,
+      /expect to (pay|spend)[^$]*\$(\d{2,3})/i,
+      /averag(e|ing)[^$]*\$(\d{2,3})/i,
+      /cost[^$]*\$(\d{2,3})/i,
+    ]
+    
+    for (const pattern of pricePatterns) {
+      const match = cleanText.match(pattern)
+      if (match) {
+        const priceStr = match[1] || match[2]
+        const price = parseInt(priceStr, 10)
+        if (price >= 10 && price <= 500) {
+          result.estimated_price_per_person = price
+          break
+        }
+      }
+    }
+    
+    // If no price found, estimate based on venue type
+    if (!result.estimated_price_per_person) {
+      if (result.venue_type === 'fine_dining') {
+        result.estimated_price_per_person = 150
+      } else if (result.venue_type === 'fast_casual') {
+        result.estimated_price_per_person = 18
+      } else if (result.venue_type === 'cafe') {
+        result.estimated_price_per_person = 15
+      } else if (result.venue_type === 'bar') {
+        result.estimated_price_per_person = 40
+      }
+      // casual defaults to null - will use price_range if available
+    }
+    
+  } catch (error) {
+    console.error('Enrichment error:', error)
+  }
   
   return result
 }
@@ -243,14 +307,10 @@ async function findRatingsFromMultipleSources(businessName: string, location: st
   source: string | null
   image_url: string | null
 }> {
-  // Try all sources in parallel
-  const [yelpResult, tripAdvisorResult, googleResult] = await Promise.all([
+  const [yelpResult] = await Promise.all([
     searchYelp(businessName, location),
-    searchTripAdvisor(businessName, location),
-    searchGoogleMaps(businessName, location),
   ])
   
-  // Prioritize: Yelp > TripAdvisor > Google
   if (yelpResult.rating) {
     return {
       rating: yelpResult.rating,
@@ -261,27 +321,6 @@ async function findRatingsFromMultipleSources(businessName: string, location: st
     }
   }
   
-  if (tripAdvisorResult.rating) {
-    return {
-      rating: tripAdvisorResult.rating,
-      review_count: tripAdvisorResult.review_count,
-      price_range: null,
-      source: 'TripAdvisor',
-      image_url: null,
-    }
-  }
-  
-  if (googleResult.rating) {
-    return {
-      rating: googleResult.rating,
-      review_count: googleResult.review_count,
-      price_range: null,
-      source: 'Google',
-      image_url: null,
-    }
-  }
-  
-  // Return Yelp image even if no rating found
   return {
     rating: null,
     review_count: null,
@@ -301,12 +340,9 @@ export async function POST(request: NextRequest) {
     const urlObj = new URL(url)
     const hostname = urlObj.hostname.replace('www.', '').toLowerCase()
     
-    // Check if this is a review site we should scrape directly
     const isYelp = hostname.includes('yelp.com')
     const isTripAdvisor = hostname.includes('tripadvisor.com')
     const isOpenTable = hostname.includes('opentable.com')
-    const isGoogleMaps = hostname.includes('google.com/maps') || hostname.includes('maps.google')
-    const isReviewSite = isYelp || isTripAdvisor || isOpenTable || isGoogleMaps
     
     // Fetch the original page
     let html = ''
@@ -332,16 +368,14 @@ export async function POST(request: NextRequest) {
       }
     } catch { /* ignore fetch errors */ }
     
-    // Get title - prefer OG tags, clean up site suffix
+    // Get title
     let title = tags['og:title'] || tags['twitter:title'] || tags['title'] || ''
     
-    // Clean title - remove site name suffix
     title = title
       .replace(/\s*[|\\-–—]\s*(Yelp|TripAdvisor|OpenTable|Google Maps|Resy|Eater).*$/i, '')
       .replace(/\s*-\s*(Restaurant|Menu|Reservations)\s*$/i, '')
       .trim()
     
-    // If title is empty or generic, extract from URL path
     if (!title || title.length < 3 || /^(home|welcome|menu)$/i.test(title)) {
       const pathParts = urlObj.pathname.split('/').filter(Boolean)
       const bizPart = pathParts.find(p => p.includes('-') && p.length > 5)
@@ -367,7 +401,6 @@ export async function POST(request: NextRequest) {
     }
     let foundImage: string | null = null
     
-    // First try: extract from the page directly if it's a review site
     if (isYelp && html) {
       const yelpData = extractYelpData(html)
       if (yelpData.rating) {
@@ -380,14 +413,14 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Second try: if no rating yet, search multiple sources
+    // Extract location from URL for searches
+    let location = 'New York'
+    if (urlObj.pathname.includes('new-york') || urlObj.hostname.includes('nyc')) {
+      location = 'New York'
+    }
+    
+    // Search for ratings if not found
     if (!reviewData.rating && title.length >= 3) {
-      // Try to extract location from URL or use default
-      let location = 'New York'
-      if (urlObj.pathname.includes('new-york') || urlObj.hostname.includes('nyc')) {
-        location = 'New York'
-      }
-      
       const multiSourceData = await findRatingsFromMultipleSources(title, location)
       if (multiSourceData.rating) {
         reviewData = {
@@ -402,22 +435,31 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // *** NEW: Enrich venue data via web search ***
+    const enrichment = await enrichVenueData(title, location, category)
+    
     // Get image
     let imageUrl = tags['og:image'] || tags['twitter:image'] || foundImage || null
     
-    // Make image URL absolute
     if (imageUrl && !imageUrl.startsWith('http')) {
       imageUrl = imageUrl.startsWith('/')
         ? `${urlObj.origin}${imageUrl}`
         : `${urlObj.origin}/${imageUrl}`
     }
     
-    // If still no image and it's food, try Yelp search
     if (!imageUrl && category === 'food') {
-      const yelpSearch = await searchYelp(title, 'New York')
+      const yelpSearch = await searchYelp(title, location)
       if (yelpSearch.image_url) {
         imageUrl = yelpSearch.image_url
       }
+    }
+    
+    // If we have a price_range but no estimated price, convert it
+    let estimatedPrice = enrichment.estimated_price_per_person
+    if (!estimatedPrice && reviewData.price_range) {
+      const dollarCount = (reviewData.price_range.match(/\$/g) || []).length
+      const priceMap: Record<number, number> = { 1: 20, 2: 45, 3: 85, 4: 175 }
+      estimatedPrice = priceMap[dollarCount] || null
     }
     
     const result: UnfurlResult = {
@@ -430,6 +472,11 @@ export async function POST(request: NextRequest) {
       review_count: reviewData.review_count,
       price_range: reviewData.price_range,
       rating_source: reviewData.source,
+      // Enrichment fields
+      venue_type: enrichment.venue_type,
+      meal_times: enrichment.meal_times.length > 0 ? enrichment.meal_times : null,
+      estimated_price_per_person: estimatedPrice,
+      cuisine_type: enrichment.cuisine_type,
     }
 
     return NextResponse.json(result)

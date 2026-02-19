@@ -102,6 +102,11 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
         rating: null as number | null,
         review_count: null as number | null,
         price_range: null as string | null,
+        // Enrichment fields
+        venue_type: null as string | null,
+        meal_times: null as string[] | null,
+        estimated_price_per_person: null as number | null,
+        cuisine_type: null as string | null,
       }
       
       if (unfurlResponse.ok) {
@@ -122,6 +127,11 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           rating: metadata.rating,
           review_count: metadata.review_count,
           price_range: metadata.price_range,
+          // Enrichment fields
+          venue_type: metadata.venue_type,
+          meal_times: metadata.meal_times,
+          estimated_price_per_person: metadata.estimated_price_per_person,
+          cuisine_type: metadata.cuisine_type,
           added_by: userId,
         })
 
