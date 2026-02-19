@@ -4,6 +4,9 @@ import Link from 'next/link'
 import UserMenu from '@/components/UserMenu'
 import TripContent from '@/components/TripContent'
 
+// Force dynamic rendering - this page requires Supabase auth
+export const dynamic = 'force-dynamic'
+
 export default async function TripDetailPage({ 
   params 
 }: { 
