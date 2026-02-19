@@ -447,13 +447,23 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                   </a>
                   <button
                     onClick={() => handleConfirm(selectedLink.id)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
+                    className={`px-4 py-2.5 rounded-full font-medium transition flex items-center gap-2 ${
                       selectedLink.is_confirmed
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-500'
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-600'
                     }`}
                   >
-                    ✓
+                    {selectedLink.is_confirmed ? (
+                      <>
+                        <span className="text-lg">✓</span>
+                        <span>Confirmed</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg">○</span>
+                        <span>Confirm</span>
+                      </>
+                    )}
                   </button>
                 </div>
                 <button
@@ -620,13 +630,24 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                 {filteredLinks.map((link) => (
                   <div 
                     key={link.id} 
-                    className={`bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition cursor-pointer group ${
-                      link.is_confirmed ? 'border-[#7CB69D] ring-2 ring-[#7CB69D]/20' : 'border-gray-200'
+                    className={`bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition group relative ${
+                      link.is_confirmed 
+                        ? 'border-green-400 ring-2 ring-green-400/30 bg-green-50/30' 
+                        : 'border-gray-200'
                     }`}
-                    onClick={() => setSelectedLink(link)}
                   >
-                    {/* Image */}
-                    <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                    {/* Confirmed Banner */}
+                    {link.is_confirmed && (
+                      <div className="absolute top-0 left-0 right-0 bg-green-500 text-white text-xs font-semibold text-center py-1 z-10">
+                        ✓ CONFIRMED
+                      </div>
+                    )}
+                    
+                    {/* Image - Clickable to open details */}
+                    <div 
+                      className={`aspect-[4/3] bg-gray-100 relative overflow-hidden cursor-pointer ${link.is_confirmed ? 'mt-6' : ''}`}
+                      onClick={() => setSelectedLink(link)}
+                    >
                       {link.image_url ? (
                         <img 
                           src={link.image_url} 
@@ -641,16 +662,17 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                           {link.category === 'hotel' ? '🏨' : link.category === 'food' ? '🍽️' : link.category === 'activity' ? '🎯' : '🔗'}
                         </div>
                       )}
-                      {link.is_confirmed && (
-                        <div className="absolute top-3 right-3 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg">
-                          ✓
-                        </div>
-                      )}
                     </div>
                     
                     {/* Info */}
                     <div className="p-4">
-                      <h3 className="font-medium text-center mb-1 line-clamp-2">{link.title || 'Untitled'}</h3>
+                      {/* Title - no truncation, wraps naturally */}
+                      <h3 
+                        className="font-medium text-center mb-1 cursor-pointer hover:text-[#8B9DC3]"
+                        onClick={() => setSelectedLink(link)}
+                      >
+                        {link.title || 'Untitled'}
+                      </h3>
                       {link.price_range && (
                         <p className="text-gray-500 text-sm text-center">{link.price_range}</p>
                       )}
@@ -660,11 +682,28 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                         </p>
                       )}
                       
-                      {/* View Button */}
-                      <div className="mt-4 flex justify-center">
-                        <span className="px-6 py-2 bg-[#FFF8E7] text-gray-800 rounded-full text-sm font-medium border border-[#F0E6D0]">
+                      {/* Action Buttons */}
+                      <div className="mt-4 flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => setSelectedLink(link)}
+                          className="px-4 py-2 bg-[#FFF8E7] text-gray-800 rounded-full text-sm font-medium border border-[#F0E6D0] hover:bg-[#FFEFC7] transition"
+                        >
                           View
-                        </span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleConfirm(link.id)
+                          }}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-1 ${
+                            link.is_confirmed
+                              ? 'bg-green-500 text-white hover:bg-red-500'
+                              : 'bg-gray-100 text-gray-600 hover:bg-green-500 hover:text-white'
+                          }`}
+                          title={link.is_confirmed ? 'Click to unconfirm' : 'Click to confirm'}
+                        >
+                          {link.is_confirmed ? '✓' : '○'}
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ interface Link {
   id: string
   url: string
   title: string | null
+  description: string | null
   category: string | null
   price_range: string | null
   rating: number | null
@@ -30,33 +31,190 @@ interface DayPlan {
   items: ItineraryItem[]
 }
 
-// Convert price_range to estimated cost
-function estimateCost(priceRange: string | null): number {
-  if (!priceRange) return 0
-  const dollarCount = (priceRange.match(/\$/g) || []).length
-  // Rough estimates: $ = $15, $$ = $35, $$$ = $75, $$$$ = $150
-  const costMap: Record<number, number> = { 1: 15, 2: 35, 3: 75, 4: 150 }
-  return costMap[dollarCount] || 0
+// Detect if a restaurant is fine dining (dinner-only)
+function isFineDining(title: string, description?: string | null, priceRange?: string | null): boolean {
+  const text = `${title} ${description || ''}`.toLowerCase()
+  
+  // Price indicator: $$$$ almost always means fine dining
+  const dollarCount = (priceRange?.match(/\$/g) || []).length
+  if (dollarCount >= 4) return true
+  
+  // Name/description indicators
+  const fineDiningIndicators = [
+    'michelin',
+    'tasting menu',
+    'omakase',
+    'kaiseki',
+    'fine dining',
+    'chef\'s table',
+    'james beard',
+    'starred',
+    'prix fixe',
+    // Famous fine dining restaurants
+    'peter luger',
+    'le bernardin',
+    'eleven madison',
+    'per se',
+    'masa',
+    'atomix',
+    'don angie',
+    'carbone',
+    'rao\'s',
+    'okdongsik',
+    'cho dang gol',
+    'jungsik',
+    'jeju noodle',
+    'korean bbq',
+    'steakhouse'
+  ]
+  
+  return fineDiningIndicators.some(indicator => text.includes(indicator))
 }
 
-// Get typical time for activity type
-function getTypicalTime(category: string | null, slot: 'morning' | 'afternoon' | 'evening'): string {
-  const times: Record<string, Record<string, string>> = {
-    food: { morning: '9:00 AM', afternoon: '12:30 PM', evening: '7:00 PM' },
-    activity: { morning: '10:00 AM', afternoon: '2:00 PM', evening: '6:00 PM' },
-    hotel: { morning: '11:00 AM', afternoon: '3:00 PM', evening: '3:00 PM' },
-    other: { morning: '10:00 AM', afternoon: '2:00 PM', evening: '6:00 PM' },
+// Detect if a place is a breakfast/brunch spot
+function isBreakfastSpot(title: string, description?: string | null): boolean {
+  const text = `${title} ${description || ''}`.toLowerCase()
+  
+  const breakfastIndicators = [
+    'breakfast',
+    'brunch',
+    'cafe',
+    'café',
+    'coffee',
+    'bakery',
+    'bagel',
+    'pancake',
+    'waffle',
+    'diner',
+    'morning',
+    'egg'
+  ]
+  
+  return breakfastIndicators.some(indicator => text.includes(indicator))
+}
+
+// Detect if a place is casual lunch-appropriate
+function isCasualLunch(title: string, description?: string | null, priceRange?: string | null): boolean {
+  const text = `${title} ${description || ''}`.toLowerCase()
+  const dollarCount = (priceRange?.match(/\$/g) || []).length
+  
+  // $ or $$ usually casual
+  if (dollarCount <= 2) return true
+  
+  const casualIndicators = [
+    'deli',
+    'sandwich',
+    'pizza',
+    'burger',
+    'fast',
+    'casual',
+    'quick',
+    'counter',
+    'food hall',
+    'market',
+    'takeout',
+    'to-go'
+  ]
+  
+  return casualIndicators.some(indicator => text.includes(indicator))
+}
+
+// Estimate price for a venue
+async function estimateCost(
+  link: Link,
+  location: string,
+  baseUrl: string
+): Promise<number> {
+  // If we have a $ price range, use smart mapping
+  if (link.price_range) {
+    const dollarCount = (link.price_range.match(/\$/g) || []).length
+    
+    if (link.category === 'food') {
+      // NYC restaurant pricing per person
+      const costMap: Record<number, number> = { 1: 20, 2: 45, 3: 85, 4: 200 }
+      return costMap[dollarCount] || 50
+    }
   }
-  return times[category || 'other']?.[slot] || '12:00 PM'
+  
+  // For items without price range, try the estimate API
+  try {
+    const response = await fetch(`${baseUrl}/api/estimate-price`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: link.title,
+        category: link.category,
+        location,
+        priceRange: link.price_range,
+        description: link.description
+      })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      return data.estimatedCost || 50
+    }
+  } catch {
+    // Fall through to defaults
+  }
+  
+  // Fallbacks by category
+  if (link.category === 'hotel') return 350 // NYC hotel average
+  if (link.category === 'food') return isFineDining(link.title || '', link.description, link.price_range) ? 175 : 55
+  if (link.category === 'activity') return 40
+  return 30
+}
+
+// Determine best time slot for a restaurant
+function getBestMealSlot(
+  link: Link,
+  availableSlots: { slot: 'breakfast' | 'lunch' | 'dinner'; dayIndex: number }[]
+): { slot: 'breakfast' | 'lunch' | 'dinner'; dayIndex: number } | null {
+  if (availableSlots.length === 0) return null
+  
+  const title = link.title || ''
+  const description = link.description || ''
+  const priceRange = link.price_range
+  
+  // Fine dining → prefer dinner
+  if (isFineDining(title, description, priceRange)) {
+    const dinnerSlot = availableSlots.find(s => s.slot === 'dinner')
+    if (dinnerSlot) return dinnerSlot
+    // Fine dining at lunch is unusual but possible
+    const lunchSlot = availableSlots.find(s => s.slot === 'lunch')
+    if (lunchSlot) return lunchSlot
+  }
+  
+  // Breakfast spots → breakfast
+  if (isBreakfastSpot(title, description)) {
+    const breakfastSlot = availableSlots.find(s => s.slot === 'breakfast')
+    if (breakfastSlot) return breakfastSlot
+  }
+  
+  // Casual places → prefer lunch
+  if (isCasualLunch(title, description, priceRange)) {
+    const lunchSlot = availableSlots.find(s => s.slot === 'lunch')
+    if (lunchSlot) return lunchSlot
+  }
+  
+  // Default: prefer dinner, then lunch, then breakfast
+  const preferenceOrder: ('dinner' | 'lunch' | 'breakfast')[] = ['dinner', 'lunch', 'breakfast']
+  for (const preferred of preferenceOrder) {
+    const slot = availableSlots.find(s => s.slot === preferred)
+    if (slot) return slot
+  }
+  
+  return availableSlots[0]
 }
 
 // Generate itinerary from confirmed links
-function generateItinerary(
+async function generateItinerary(
   links: Link[],
   startDate: string,
   endDate: string,
-  destination: string
-): { days: DayPlan[]; totalCost: number; summary: string } {
+  destination: string,
+  baseUrl: string
+): Promise<{ days: DayPlan[]; totalCost: number; summary: string }> {
   const confirmedLinks = links.filter(l => l.is_confirmed)
   
   // Categorize links
@@ -73,6 +231,14 @@ function generateItinerary(
   const days: DayPlan[] = []
   let totalCost = 0
   
+  // Track available meal slots
+  const mealSlots: { slot: 'breakfast' | 'lunch' | 'dinner'; dayIndex: number; used: boolean }[] = []
+  for (let i = 0; i < tripDays; i++) {
+    mealSlots.push({ slot: 'breakfast', dayIndex: i, used: false })
+    mealSlots.push({ slot: 'lunch', dayIndex: i, used: false })
+    mealSlots.push({ slot: 'dinner', dayIndex: i, used: false })
+  }
+  
   // Create day plans
   for (let i = 0; i < tripDays; i++) {
     const date = new Date(start)
@@ -87,10 +253,10 @@ function generateItinerary(
       items: [],
     }
     
-    // First day: add arrival/hotel check-in
+    // First day: add hotel check-in
     if (i === 0 && hotels.length > 0) {
       const hotel = hotels[0]
-      const cost = estimateCost(hotel.price_range) * tripDays // Hotel cost for full stay
+      const cost = await estimateCost(hotel, destination, baseUrl) * tripDays
       totalCost += cost
       dayPlan.items.push({
         id: `${dateStr}-checkin`,
@@ -99,7 +265,7 @@ function generateItinerary(
         timeSlot: 'afternoon',
         type: 'hotel_checkin',
         title: `Check in at ${hotel.title || 'Hotel'}`,
-        subtitle: hotel.price_range ? `${hotel.price_range} per night` : undefined,
+        subtitle: `$${Math.round(cost / tripDays)}/night • ${tripDays} nights`,
         link: hotel,
         estimatedCost: cost,
       })
@@ -121,52 +287,60 @@ function generateItinerary(
     days.push(dayPlan)
   }
   
-  // Distribute meals across days
-  const mealSlots: ('morning' | 'afternoon' | 'evening')[] = ['morning', 'afternoon', 'evening']
-  let mealIndex = 0
+  // Assign meals to appropriate slots
+  const mealTimes: Record<string, string> = {
+    breakfast: '9:30 AM',
+    lunch: '12:30 PM',
+    dinner: '7:30 PM'
+  }
   
   for (const meal of meals) {
-    const dayIndex = mealIndex % tripDays
-    const slotIndex = Math.floor(mealIndex / tripDays) % 3
-    const slot = mealSlots[slotIndex]
-    const date = days[dayIndex].date
-    const cost = estimateCost(meal.price_range)
-    totalCost += cost
+    const availableSlots = mealSlots.filter(s => !s.used)
+    const bestSlot = getBestMealSlot(meal, availableSlots)
     
-    const mealType = slot === 'morning' ? 'Breakfast' : slot === 'afternoon' ? 'Lunch' : 'Dinner'
-    
-    days[dayIndex].items.push({
-      id: `${date}-meal-${mealIndex}`,
-      date,
-      time: getTypicalTime('food', slot),
-      timeSlot: slot,
-      type: 'meal',
-      title: `${mealType} at ${meal.title || 'Restaurant'}`,
-      subtitle: meal.price_range || undefined,
-      link: meal,
-      estimatedCost: cost,
-    })
-    
-    mealIndex++
+    if (bestSlot) {
+      bestSlot.used = true
+      const dayIndex = bestSlot.dayIndex
+      const date = days[dayIndex].date
+      const cost = await estimateCost(meal, destination, baseUrl)
+      totalCost += cost
+      
+      // Capitalize slot name for display
+      const mealType = bestSlot.slot.charAt(0).toUpperCase() + bestSlot.slot.slice(1)
+      
+      days[dayIndex].items.push({
+        id: `${date}-meal-${meal.id}`,
+        date,
+        time: mealTimes[bestSlot.slot],
+        timeSlot: bestSlot.slot === 'breakfast' ? 'morning' : bestSlot.slot === 'lunch' ? 'afternoon' : 'evening',
+        type: 'meal',
+        title: `${mealType} at ${meal.title || 'Restaurant'}`,
+        subtitle: cost > 0 ? `~$${cost}/person` : undefined,
+        link: meal,
+        estimatedCost: cost,
+      })
+    }
   }
   
   // Distribute activities across days
   let activityIndex = 0
+  const activityTimes = ['10:30 AM', '2:30 PM', '4:00 PM']
+  
   for (const activity of activities) {
     const dayIndex = activityIndex % tripDays
     const date = days[dayIndex].date
-    const slot = activityIndex % 2 === 0 ? 'morning' : 'afternoon'
-    const cost = estimateCost(activity.price_range)
+    const timeIndex = Math.floor(activityIndex / tripDays) % activityTimes.length
+    const cost = await estimateCost(activity, destination, baseUrl)
     totalCost += cost
     
     days[dayIndex].items.push({
-      id: `${date}-activity-${activityIndex}`,
+      id: `${date}-activity-${activity.id}`,
       date,
-      time: getTypicalTime('activity', slot),
-      timeSlot: slot,
+      time: activityTimes[timeIndex],
+      timeSlot: timeIndex === 0 ? 'morning' : 'afternoon',
       type: 'activity',
       title: activity.title || 'Activity',
-      subtitle: activity.price_range || undefined,
+      subtitle: cost > 0 ? `~$${cost}` : undefined,
       link: activity,
       estimatedCost: cost,
     })
@@ -179,16 +353,17 @@ function generateItinerary(
   for (const other of others) {
     const dayIndex = otherIndex % tripDays
     const date = days[dayIndex].date
-    const cost = estimateCost(other.price_range)
+    const cost = await estimateCost(other, destination, baseUrl)
     totalCost += cost
     
     days[dayIndex].items.push({
-      id: `${date}-other-${otherIndex}`,
+      id: `${date}-other-${other.id}`,
       date,
       time: '2:00 PM',
       timeSlot: 'afternoon',
       type: 'other',
-      title: other.title || 'Activity',
+      title: other.title || 'Item',
+      subtitle: cost > 0 ? `~$${cost}` : undefined,
       link: other,
       estimatedCost: cost,
     })
@@ -235,11 +410,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
     
-    const itinerary = generateItinerary(
+    // Get base URL for internal API calls
+    const baseUrl = request.nextUrl.origin
+    
+    const itinerary = await generateItinerary(
       trip.links || [],
       trip.start_date,
       trip.end_date,
-      trip.destination || 'your destination'
+      trip.destination || 'your destination',
+      baseUrl
     )
     
     return NextResponse.json(itinerary)
