@@ -15,6 +15,7 @@ interface UnfurlResult {
   meal_times: string[] | null
   estimated_price_per_person: number | null
   cuisine_type: string | null
+  ai_summary: string | null
 }
 
 interface EnrichmentData {
@@ -22,6 +23,7 @@ interface EnrichmentData {
   meal_times: string[]
   estimated_price_per_person: number | null
   cuisine_type: string | null
+  ai_summary: string | null
 }
 
 function detectCategory(url: string, title?: string): 'hotel' | 'food' | 'activity' | 'other' {
@@ -165,6 +167,102 @@ async function searchYelp(businessName: string, location: string = 'New York'): 
   return result
 }
 
+// Generate a concise summary from enrichment data
+function generateSummary(
+  businessName: string,
+  category: string,
+  venueType: string | null,
+  cuisineType: string | null,
+  mealTimes: string[],
+  pricePerPerson: number | null,
+  searchSnippets: string
+): string | null {
+  if (category === 'hotel') {
+    // Extract hotel highlights from search
+    const highlights: string[] = []
+    if (/luxury|5-star|five star|world-class/i.test(searchSnippets)) highlights.push('Luxury hotel')
+    else if (/boutique/i.test(searchSnippets)) highlights.push('Boutique hotel')
+    else if (/budget|affordable/i.test(searchSnippets)) highlights.push('Budget-friendly hotel')
+    else highlights.push('Hotel')
+    
+    if (/spa|wellness/i.test(searchSnippets)) highlights.push('with spa')
+    if (/rooftop|views/i.test(searchSnippets)) highlights.push('great views')
+    if (/central|downtown|midtown/i.test(searchSnippets)) highlights.push('central location')
+    
+    return highlights.join(', ') + '.'
+  }
+  
+  if (category !== 'food') {
+    // Activity summary
+    if (/museum/i.test(searchSnippets)) return 'Museum and cultural attraction.'
+    if (/show|broadway|theater/i.test(searchSnippets)) return 'Theater and entertainment venue.'
+    if (/tour/i.test(searchSnippets)) return 'Guided tour or experience.'
+    return null
+  }
+  
+  // Restaurant summary
+  const parts: string[] = []
+  
+  // Cuisine + venue type
+  if (cuisineType && venueType) {
+    const venueLabels: Record<string, string> = {
+      fine_dining: 'fine dining',
+      casual: 'casual',
+      fast_casual: 'fast-casual',
+      cafe: 'café',
+      bar: 'bar & restaurant'
+    }
+    parts.push(`${cuisineType} ${venueLabels[venueType] || 'restaurant'}`)
+  } else if (cuisineType) {
+    parts.push(`${cuisineType} restaurant`)
+  } else if (venueType) {
+    const venueLabels: Record<string, string> = {
+      fine_dining: 'Fine dining restaurant',
+      casual: 'Casual dining spot',
+      fast_casual: 'Fast-casual eatery',
+      cafe: 'Café',
+      bar: 'Bar & restaurant'
+    }
+    parts.push(venueLabels[venueType] || 'Restaurant')
+  }
+  
+  // Extract notable features from search
+  const features: string[] = []
+  if (/known for|famous for|best|signature/i.test(searchSnippets)) {
+    const knownForMatch = searchSnippets.match(/(?:known for|famous for|best|signature)[^.]*?([\w\s]+(?:dish|dishes|menu|food|cuisine|steak|pasta|sushi|ramen|tofu|bbq|pizza|burger|tacos))/i)
+    if (knownForMatch) features.push(`known for ${knownForMatch[1].trim().toLowerCase()}`)
+  }
+  if (/since \d{4}|established \d{4}|opened in \d{4}/i.test(searchSnippets)) {
+    const yearMatch = searchSnippets.match(/(?:since|established|opened in) (\d{4})/i)
+    if (yearMatch) features.push(`since ${yearMatch[1]}`)
+  }
+  if (/reservations? (?:required|recommended|needed)/i.test(searchSnippets)) {
+    features.push('reservations recommended')
+  }
+  
+  // Combine
+  let summary = parts.length > 0 ? parts[0] : 'Restaurant'
+  if (features.length > 0) {
+    summary += ` — ${features.slice(0, 2).join(', ')}`
+  }
+  
+  // Add meal times hint
+  if (mealTimes.length === 1) {
+    if (mealTimes[0] === 'dinner') summary += '. Dinner only.'
+    else if (mealTimes[0] === 'breakfast') summary += '. Breakfast/brunch spot.'
+  } else if (mealTimes.length > 0 && !mealTimes.includes('breakfast')) {
+    summary += '. Open for lunch and dinner.'
+  }
+  
+  // Add price hint
+  if (pricePerPerson) {
+    if (pricePerPerson >= 100) summary += ` ~$${pricePerPerson}/person.`
+    else if (pricePerPerson >= 50) summary += ` ~$${pricePerPerson}/person.`
+  }
+  
+  return summary || null
+}
+
 // Search web and enrich venue data
 async function enrichVenueData(
   businessName: string, 
@@ -176,6 +274,23 @@ async function enrichVenueData(
     meal_times: [],
     estimated_price_per_person: null,
     cuisine_type: null,
+    ai_summary: null,
+  }
+  
+  // For hotels, generate a basic summary
+  if (category === 'hotel') {
+    try {
+      const searchQuery = encodeURIComponent(`"${businessName}" ${location} hotel amenities reviews`)
+      const response = await fetch(`https://html.duckduckgo.com/html/?q=${searchQuery}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      })
+      if (response.ok) {
+        const html = await response.text()
+        const cleanText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+        result.ai_summary = generateSummary(businessName, category, null, null, [], null, cleanText)
+      }
+    } catch { /* ignore */ }
+    return result
   }
   
   if (category !== 'food') {
@@ -291,6 +406,17 @@ async function enrichVenueData(
       }
       // casual defaults to null - will use price_range if available
     }
+    
+    // Generate AI summary from collected data
+    result.ai_summary = generateSummary(
+      businessName,
+      category,
+      result.venue_type,
+      result.cuisine_type,
+      result.meal_times,
+      result.estimated_price_per_person,
+      cleanText
+    )
     
   } catch (error) {
     console.error('Enrichment error:', error)
@@ -477,6 +603,7 @@ export async function POST(request: NextRequest) {
       meal_times: enrichment.meal_times.length > 0 ? enrichment.meal_times : null,
       estimated_price_per_person: estimatedPrice,
       cuisine_type: enrichment.cuisine_type,
+      ai_summary: enrichment.ai_summary,
     }
 
     return NextResponse.json(result)

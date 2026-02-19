@@ -15,6 +15,9 @@ interface Link {
   rating: number | null
   review_count: number | null
   price_range: string | null
+  venue_type: string | null
+  cuisine_type: string | null
+  ai_summary: string | null
   votes: { user_id: string; vote: string }[]
   comments: { id: string; user_id: string; text: string; created_at: string }[]
 }
@@ -107,6 +110,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
         meal_times: null as string[] | null,
         estimated_price_per_person: null as number | null,
         cuisine_type: null as string | null,
+        ai_summary: null as string | null,
       }
       
       if (unfurlResponse.ok) {
@@ -132,6 +136,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           meal_times: metadata.meal_times,
           estimated_price_per_person: metadata.estimated_price_per_person,
           cuisine_type: metadata.cuisine_type,
+          ai_summary: metadata.ai_summary,
           added_by: userId,
         })
 
@@ -435,9 +440,30 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
               )}
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-2">{selectedLink.title}</h2>
-                {selectedLink.description && (
-                  <p className="text-gray-600 text-sm mb-3">{selectedLink.description}</p>
+                
+                {/* AI-generated summary - prominent display */}
+                {selectedLink.ai_summary && (
+                  <p className="text-gray-700 text-sm mb-3 bg-[#FFF8E7] p-3 rounded-lg border border-[#F0E6D0]">
+                    {selectedLink.ai_summary}
+                  </p>
                 )}
+                
+                {/* Cuisine type badge */}
+                {selectedLink.cuisine_type && (
+                  <div className="flex gap-2 mb-3">
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                      {selectedLink.cuisine_type}
+                    </span>
+                    {selectedLink.venue_type && (
+                      <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                        {selectedLink.venue_type === 'fine_dining' ? 'Fine Dining' : 
+                         selectedLink.venue_type === 'fast_casual' ? 'Fast Casual' :
+                         selectedLink.venue_type.charAt(0).toUpperCase() + selectedLink.venue_type.slice(1)}
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 {selectedLink.rating && (
                   <p className="text-yellow-600 text-sm mb-2">
                     {'★'.repeat(Math.floor(selectedLink.rating))} {selectedLink.rating.toFixed(1)}
