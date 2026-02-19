@@ -588,6 +588,54 @@ export async function POST(request: NextRequest) {
       estimatedPrice = priceMap[dollarCount] || null
     }
     
+    // ENSURE every link gets a summary - fallback if AI summary is missing
+    let finalSummary = enrichment.ai_summary
+    if (!finalSummary) {
+      // Generate fallback based on available data
+      if (category === 'food') {
+        const parts: string[] = []
+        if (enrichment.cuisine_type) {
+          parts.push(`${enrichment.cuisine_type} restaurant`)
+        } else {
+          parts.push('Restaurant')
+        }
+        if (reviewData.rating) {
+          parts.push(`rated ${reviewData.rating.toFixed(1)}★`)
+        }
+        if (reviewData.price_range) {
+          parts.push(`(${reviewData.price_range})`)
+        }
+        finalSummary = parts.join(' ')
+        if (reviewData.review_count && reviewData.review_count > 100) {
+          finalSummary += `. ${reviewData.review_count.toLocaleString()} reviews.`
+        } else {
+          finalSummary += '.'
+        }
+      } else if (category === 'hotel') {
+        const parts: string[] = ['Hotel']
+        if (reviewData.rating) {
+          parts.push(`rated ${reviewData.rating.toFixed(1)}★`)
+        }
+        if (estimatedPrice) {
+          parts.push(`~$${estimatedPrice}/night`)
+        }
+        finalSummary = parts.join(' ') + '.'
+      } else if (category === 'activity') {
+        finalSummary = 'Activity or attraction.'
+        if (reviewData.rating) {
+          finalSummary = `Activity rated ${reviewData.rating.toFixed(1)}★.`
+        }
+      } else {
+        // 'other' category - use meta description or generic
+        const metaDesc = tags['og:description'] || tags['description']
+        if (metaDesc && metaDesc.length > 10) {
+          finalSummary = metaDesc.length > 150 ? metaDesc.slice(0, 147) + '...' : metaDesc
+        } else {
+          finalSummary = `Link from ${hostname}.`
+        }
+      }
+    }
+    
     const result: UnfurlResult = {
       title,
       description: tags['og:description'] || tags['twitter:description'] || tags['description'] || null,
@@ -603,7 +651,7 @@ export async function POST(request: NextRequest) {
       meal_times: enrichment.meal_times.length > 0 ? enrichment.meal_times : null,
       estimated_price_per_person: estimatedPrice,
       cuisine_type: enrichment.cuisine_type,
-      ai_summary: enrichment.ai_summary,
+      ai_summary: finalSummary,
     }
 
     return NextResponse.json(result)
