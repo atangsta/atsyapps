@@ -333,7 +333,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
       <div className="max-w-7xl mx-auto px-4 py-6">
         {viewMode === 'itinerary' && itinerary ? (
           /* Itinerary View */
-          <div>
+          <div className="animate-fadeSlideUp">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -467,7 +467,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           </div>
         ) : selectedLink ? (
           /* Detail View with Comments */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeSlideUp">
             {/* Left: Card Detail */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               {selectedLink.image_url && (
@@ -629,7 +629,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
           </div>
         ) : (
           /* Browse View */
-          <>
+          <div className="animate-fadeSlideDown">
             {/* Search Bar */}
             <div className="flex items-center gap-4 mb-8">
               <div className="flex-1 relative">
@@ -800,7 +800,7 @@ export default function TripContent({ trip, userId }: { trip: Trip; userId: stri
                 ))}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
